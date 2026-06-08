@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { authClient } from "@/lib/auth-client";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export interface Activity {
   id: string;
@@ -51,6 +53,16 @@ interface AppContextType {
   loadingMsg: string;
   setLoadingMsg: React.Dispatch<React.SetStateAction<string>>;
   showLoading: (msg?: string, duration?: number) => Promise<void>;
+  confirmAction: (options: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+    cancelLabel?: string;
+  }) => void;
+  editingRhk: RhkItem | null;
+  setEditingRhk: (rhk: RhkItem | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -174,6 +186,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const [editingRhk, setEditingRhk] = useState<RhkItem | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const confirmAction = (options: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+    cancelLabel?: string;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      ...options,
+    });
+  };
+
+  const { data: session } = authClient.useSession();
+
+  useEffect(() => {
+    const fetchRhks = async () => {
+      try {
+        const res = await fetch("/api/rhk");
+        if (res.ok) {
+          const data = await res.json();
+          setRhks(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch RHKs:", error);
+      }
+    };
+
+    if (session) {
+      fetchRhks();
+    } else {
+      setRhks([]);
+    }
+  }, [session]);
+
   useEffect(() => {
     setActivitiesCount(activities.length);
   }, [activities]);
@@ -228,9 +293,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loadingMsg,
         setLoadingMsg,
         showLoading,
+        confirmAction,
+        editingRhk,
+        setEditingRhk,
       }}
     >
       {children}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        cancelLabel={confirmModal.cancelLabel}
+        isDanger={confirmModal.isDanger}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </AppContext.Provider>
   );
 }

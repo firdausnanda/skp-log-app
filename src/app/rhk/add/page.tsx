@@ -84,12 +84,12 @@ const customSelectStyles = {
 
 export default function AddRhkPage() {
   const router = useRouter();
-  const { setRhks, triggerNotification, showLoading, setIsLoading, setLoadingMsg } = useApp();
+  const { setRhks, triggerNotification, showLoading, setIsLoading, setLoadingMsg, editingRhk, setEditingRhk } = useApp();
 
-  const [tahun, setTahun] = useState("2026");
-  const [judul, setJudul] = useState("");
-  const [kategori, setKategori] = useState<"Utama" | "Tambahan">("Utama");
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  const [tahun, setTahun] = useState(() => editingRhk?.period || "2026");
+  const [judul, setJudul] = useState(() => editingRhk?.title || "");
+  const [kategori, setKategori] = useState<"Utama" | "Tambahan">(() => editingRhk?.type || "Utama");
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(() => editingRhk?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Client-side rendering portal check
@@ -107,6 +107,7 @@ export default function AddRhkPage() {
   };
 
   const handleCancel = () => {
+    setEditingRhk(null);
     setLoadingMsg("Kembali...");
     setIsLoading(true);
     setTimeout(() => {
@@ -122,22 +123,77 @@ export default function AddRhkPage() {
     }
 
     setIsSubmitting(true);
-    await showLoading("Menyimpan RHK baru...", 1000);
+    await showLoading(editingRhk ? "Memperbarui RHK..." : "Menyimpan RHK baru...", 1000);
 
-    const newRhk: RhkItem = {
-      id: `rhk-${Date.now()}`,
-      type: kategori,
-      title: judul.trim(),
-      indicator: "Laporan hasil kegiatan capaian kinerja.",
-      currentProgress: 0,
-      targetProgress: selectedMonths.length || 10,
-      period: tahun,
-      months: selectedMonths,
-    };
+    if (editingRhk) {
+      try {
+        const res = await fetch("/api/rhk", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: editingRhk.id,
+            title: judul.trim(),
+            type: kategori,
+            period: tahun,
+            months: selectedMonths,
+            indicator: editingRhk.indicator,
+          }),
+        });
 
-    setRhks((prev) => [newRhk, ...prev]);
-    triggerNotification("RHK baru berhasil ditambahkan!");
-    router.push("/rhk");
+        if (res.ok) {
+          const updatedRhk = await res.json();
+          updatedRhk.currentProgress = editingRhk.currentProgress;
+
+          setRhks((prev) =>
+            prev.map((item) => (item.id === editingRhk.id ? updatedRhk : item))
+          );
+          triggerNotification("RHK berhasil diperbarui!");
+          setEditingRhk(null);
+          router.push("/rhk");
+        } else {
+          const errData = await res.json();
+          triggerNotification(errData.error || "Gagal memperbarui RHK.");
+        }
+      } catch (err) {
+        console.error(err);
+        triggerNotification("Terjadi kesalahan saat memperbarui RHK.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      try {
+        const res = await fetch("/api/rhk", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: judul.trim(),
+            type: kategori,
+            period: tahun,
+            months: selectedMonths,
+            indicator: "Laporan hasil kegiatan capaian kinerja.",
+          }),
+        });
+
+        if (res.ok) {
+          const savedRhk = await res.json();
+          setRhks((prev) => [savedRhk, ...prev]);
+          triggerNotification("RHK baru berhasil ditambahkan!");
+          router.push("/rhk");
+        } else {
+          const errData = await res.json();
+          triggerNotification(errData.error || "Gagal menambahkan RHK.");
+        }
+      } catch (err) {
+        console.error(err);
+        triggerNotification("Terjadi kesalahan saat menyimpan RHK.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   return (
@@ -159,12 +215,18 @@ export default function AddRhkPage() {
         {/* Title Card Header */}
         <div className="px-5 py-4 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between">
           <div>
-            <h2 className="font-headline-md text-headline-md text-on-surface font-bold">Tambah RHK Baru</h2>
+            <h2 className="font-headline-md text-headline-md text-on-surface font-bold">
+              {editingRhk ? "Ubah RHK" : "Tambah RHK Baru"}
+            </h2>
             <p className="font-body-sm text-xs text-on-surface-variant mt-1">
-              Isi formulir di bawah ini untuk menambahkan Rencana Hasil Kerja.
+              {editingRhk
+                ? "Perbarui informasi Rencana Hasil Kerja Anda di bawah ini."
+                : "Isi formulir di bawah ini untuk menambahkan Rencana Hasil Kerja."}
             </p>
           </div>
-          <span className="material-symbols-outlined text-primary text-3xl opacity-20">assignment_add</span>
+          <span className="material-symbols-outlined text-primary text-3xl opacity-20 select-none text-[32px]">
+            {editingRhk ? "edit_note" : "assignment_add"}
+          </span>
         </div>
 
         {/* Form Body */}

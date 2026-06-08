@@ -4,10 +4,9 @@ import Select, { StylesConfig } from "react-select";
 import { useApp, RhkItem } from "@/context/AppContext";
 
 const periodOptions = [
-  { value: "Semua Periode", label: "Semua Periode" },
-  { value: "Tahunan 2024", label: "Tahunan 2024" },
-  { value: "Kuartal 1", label: "Kuartal 1" },
-  { value: "Kuartal 2", label: "Kuartal 2" },
+  { value: "2026", label: "Tahunan 2026" },
+  { value: "2025", label: "Tahunan 2025" },
+  { value: "2024", label: "Tahunan 2024" },
 ];
 
 const categoryOptions = [
@@ -78,10 +77,10 @@ interface RhkTabProps {
 
 export default function RhkTab({ onNotification }: RhkTabProps) {
   const router = useRouter();
-  const { rhks, setRhks, setIsLoading, setLoadingMsg } = useApp();
+  const { rhks, setRhks, setIsLoading, setLoadingMsg, confirmAction, setEditingRhk } = useApp();
 
   const [search, setSearch] = useState("");
-  const [selectedPeriod, setSelectedPeriod] = useState("Semua Periode");
+  const [selectedPeriod, setSelectedPeriod] = useState(new Date().getFullYear().toString());
   const [selectedCategory, setSelectedCategory] = useState("Semua Kategori");
 
   const [isMounted, setIsMounted] = useState(false);
@@ -91,6 +90,42 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
     });
     return () => cancelAnimationFrame(frameId);
   }, []);
+
+  const handlePeriodChange = (val: any) => {
+    const period = val ? val.value : new Date().getFullYear().toString();
+    setLoadingMsg("Memfilter RHK...");
+    setIsLoading(true);
+    setTimeout(() => {
+      setSelectedPeriod(period);
+      setIsLoading(false);
+    }, 300);
+  };
+
+  const handleCategoryChange = (val: any) => {
+    const category = val ? val.value : "Semua Kategori";
+    setLoadingMsg("Memfilter RHK...");
+    setIsLoading(true);
+    setTimeout(() => {
+      setSelectedCategory(category);
+      setIsLoading(false);
+    }, 300);
+  };
+  const handleEdit = (item: RhkItem) => {
+    setEditingRhk(item);
+    setLoadingMsg("Memuat data RHK...");
+    setIsLoading(true);
+    setTimeout(() => {
+      router.push("/rhk/add");
+    }, 350);
+  };
+
+  const handleViewLogbook = (title: string) => {
+    setLoadingMsg("Memuat Logbook...");
+    setIsLoading(true);
+    setTimeout(() => {
+      router.push(`/log?rhk=${encodeURIComponent(title)}`);
+    }, 350);
+  };
 
   const handleAddRhkNav = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,16 +137,44 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
   };
 
   const handleDelete = (id: string, title: string) => {
-    setRhks(prev => prev.filter(item => item.id !== id));
-    if (onNotification) {
-      onNotification(`RHK "${title.substring(0, 20)}..." berhasil dihapus.`);
-    }
+    confirmAction({
+      title: "Hapus RHK",
+      message: `Apakah Anda yakin ingin menghapus RHK "${title}"? Semua kegiatan yang tertaut akan kehilangan referensi ini.`,
+      confirmLabel: "Hapus",
+      cancelLabel: "Batal",
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/rhk?id=${id}`, {
+            method: "DELETE",
+          });
+
+          if (res.ok) {
+            setRhks((prev) => prev.filter((item) => item.id !== id));
+            if (onNotification) {
+              onNotification(`RHK "${title.substring(0, 20)}..." berhasil dihapus.`);
+            }
+          } else {
+            const errData = await res.json();
+            if (onNotification) {
+              onNotification(errData.error || "Gagal menghapus RHK.");
+            }
+          }
+        } catch (err) {
+          console.error(err);
+          if (onNotification) {
+            onNotification("Terjadi kesalahan saat menghapus RHK.");
+          }
+        }
+      },
+    });
   };
 
   // Filter RHKs
   const filteredRhks = rhks.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase());
-    const matchesPeriod = selectedPeriod === "Semua Periode" || item.period === selectedPeriod;
+    const matchesPeriod = item.period === selectedPeriod;
+
     const matchesCategory =
       selectedCategory === "Semua Kategori" ||
       (selectedCategory === "RHK Utama" && item.type === "Utama") ||
@@ -160,7 +223,7 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
           <Select
             instanceId="rhk-period-select"
             value={periodOptions.find((opt) => opt.value === selectedPeriod) || null}
-            onChange={(val) => setSelectedPeriod(val ? val.value : "Semua Periode")}
+            onChange={handlePeriodChange}
             options={periodOptions}
             styles={customSelectStyles}
             placeholder="Periode..."
@@ -170,7 +233,7 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
           <Select
             instanceId="rhk-category-select"
             value={categoryOptions.find((opt) => opt.value === selectedCategory) || null}
-            onChange={(val) => setSelectedCategory(val ? val.value : "Semua Kategori")}
+            onChange={handleCategoryChange}
             options={categoryOptions}
             styles={customSelectStyles}
             placeholder="Kategori..."
@@ -207,10 +270,8 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
                   <h3 className="font-headline-md text-sm font-bold text-on-surface leading-snug">{item.title}</h3>
                 </div>
                 <div className="flex gap-1">
-                  <button 
-                    onClick={() => {
-                      if (onNotification) onNotification("Fitur ubah RHK segera hadir.");
-                    }}
+                   <button 
+                    onClick={() => handleEdit(item)}
                     className="p-2 text-on-surface-variant hover:bg-surface-variant hover:text-primary rounded-full transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
                   >
                     <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -247,10 +308,8 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
               </div>
 
               <div className="flex gap-3 pt-1">
-                <button 
-                  onClick={() => {
-                    if (onNotification) onNotification(`Membuka logbook RHK: ${item.title.substring(0, 15)}...`);
-                  }}
+                 <button 
+                  onClick={() => handleViewLogbook(item.title)}
                   className="flex-1 py-2 border border-primary text-primary font-label-md text-xs font-bold rounded-lg hover:bg-primary-container/10 transition-colors cursor-pointer bg-transparent"
                 >
                   Lihat Logbook

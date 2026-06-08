@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
 import { usePathname, useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 function GlobalLoader({ loadingMsg }: { loadingMsg: string }) {
   return (
@@ -78,13 +79,19 @@ export default function PhoneSimulatorWrapper({ children }: { children: React.Re
     setIsLoading(false);
   }, [pathname, setIsLoading]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setLoadingMsg("Keluar dari akun...");
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await authClient.signOut();
       triggerNotification("Anda berhasil keluar.");
       router.push("/login");
-    }, 1000);
+    } catch (err) {
+      console.error(err);
+      triggerNotification("Gagal keluar dari akun.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoginPage) {

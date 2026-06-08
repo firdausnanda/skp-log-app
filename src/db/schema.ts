@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, timestamp, mysqlEnum, json } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, mysqlEnum, json, boolean, index, foreignKey } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 // ==========================================
@@ -24,14 +24,77 @@ export const users = mysqlTable("users", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   nama: text("nama").notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
   password: text("password"),
   nip: varchar("nip", { length: 50 }).unique(),
   jabatan: text("jabatan"),
   seksi: text("seksi"),
+  username: varchar("username", { length: 255 }).unique(),
+  displayUsername: text("display_username"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
+
+// Better Auth Tables
+export const session = mysqlTable(
+  "session",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull().unique(),
+    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { fsp: 3 })
+      .$onUpdate(() => new Date())
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("session_userId_idx").on(table.userId)],
+);
+
+export const account = mysqlTable(
+  "account",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { fsp: 3 })
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("account_userId_idx").on(table.userId)],
+);
+
+export const verification = mysqlTable(
+  "verification",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    identifier: varchar("identifier", { length: 255 }).notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
+    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { fsp: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
 
 // 3. Tabel Rencana Hasil Kerja (RHK)
 export const rencanaKinerja = mysqlTable("rencana_kinerja", {
@@ -42,6 +105,8 @@ export const rencanaKinerja = mysqlTable("rencana_kinerja", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   bulanPelaksanaan: json("bulan_pelaksanaan").$type<number[]>().default([]).notNull(),
+  tahun: varchar("tahun", { length: 10 }).default("2024").notNull(),
+  indicator: text("indicator").default("Laporan hasil kegiatan capaian kinerja.").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -90,11 +155,15 @@ export const buktiDukungBerakhlak = mysqlTable("bukti_dukung_berakhlak", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   url: text("url").notNull(),
   namaFile: text("nama_file"),
-  perilakuBerakhlakId: varchar("perilaku_berakhlak_id", { length: 36 })
-    .notNull()
-    .references(() => perilakuBerakhlak.id, { onDelete: "cascade" }),
+  perilakuBerakhlakId: varchar("perilaku_berakhlak_id", { length: 36 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  foreignKey({
+    name: "fk_bukti_dukung_berakhlak_perilaku",
+    columns: [table.perilakuBerakhlakId],
+    foreignColumns: [perilakuBerakhlak.id],
+  }).onDelete("cascade"),
+]);
 
 // ==========================================
 // DEFINISI RELASI
@@ -104,6 +173,22 @@ export const usersRelations = relations(users, ({ many }) => ({
   rencanaKinerja: many(rencanaKinerja),
   skpLogs: many(skpLog),
   perilakuBerakhlak: many(perilakuBerakhlak),
+  sessions: many(session),
+  accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(users, {
+    fields: [session.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(users, {
+    fields: [account.userId],
+    references: [users.id],
+  }),
 }));
 
 export const rencanaKinerjaRelations = relations(rencanaKinerja, ({ one, many }) => ({

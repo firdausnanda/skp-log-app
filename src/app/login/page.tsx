@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setShowPassword((prev) => !prev);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       triggerNotification("Username dan Kata Sandi wajib diisi.");
@@ -29,23 +30,65 @@ export default function LoginPage() {
     setGlobalLoadingMsg("Memverifikasi kredensial...");
     setGlobalLoading(true);
 
-    // Simulate slight delay before redirect
-    setTimeout(() => {
+    try {
+      // 1. Resolve user identifier (NIP, email, or username) to email
+      const res = await fetch("/api/auth/resolve-identifier", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ identifier: username.trim() }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        triggerNotification(errData.error || "Kredensial tidak valid.");
+        setIsLoading(false);
+        setGlobalLoading(false);
+        return;
+      }
+
+      const { email } = await res.json();
+
+      // 2. Sign in with Better Auth client using email and password
+      const { data, error } = await authClient.signIn.email({
+        email,
+        password: password,
+      });
+
+      if (error) {
+        triggerNotification(error.message || "Gagal masuk, periksa kembali kata sandi Anda.");
+        setIsLoading(false);
+        setGlobalLoading(false);
+        return;
+      }
+
       triggerNotification("Login berhasil!");
       router.push("/");
-    }, 1200);
+    } catch (err) {
+      console.error(err);
+      triggerNotification("Terjadi kesalahan sistem.");
+      setIsLoading(false);
+      setGlobalLoading(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     setGlobalLoadingMsg("Menghubungkan ke Google Account...");
     setGlobalLoading(true);
 
-    // Simulate slight delay before redirect
-    setTimeout(() => {
-      triggerNotification("Login berhasil via Google!");
-      router.push("/");
-    }, 1500);
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (err) {
+      console.error(err);
+      triggerNotification("Gagal masuk dengan Google.");
+      setIsLoading(false);
+      setGlobalLoading(false);
+    }
   };
 
   return (

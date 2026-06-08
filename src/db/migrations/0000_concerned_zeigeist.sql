@@ -65,7 +65,7 @@ CREATE TABLE `users` (
 );
 --> statement-breakpoint
 ALTER TABLE `bukti_dukung` ADD CONSTRAINT `bukti_dukung_skp_log_id_skp_log_id_fk` FOREIGN KEY (`skp_log_id`) REFERENCES `skp_log`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE `bukti_dukung_berakhlak` ADD CONSTRAINT `bukti_dukung_berakhlak_perilaku_berakhlak_id_perilaku_berakhlak_id_fk` FOREIGN KEY (`perilaku_berakhlak_id`) REFERENCES `perilaku_berakhlak`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `bukti_dukung_berakhlak` ADD CONSTRAINT `bukti_dukung_berakhlak_perilaku_id_fk` FOREIGN KEY (`perilaku_berakhlak_id`) REFERENCES `perilaku_berakhlak`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `perilaku_berakhlak` ADD CONSTRAINT `perilaku_berakhlak_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `rencana_kinerja` ADD CONSTRAINT `rencana_kinerja_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `skp_log` ADD CONSTRAINT `skp_log_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

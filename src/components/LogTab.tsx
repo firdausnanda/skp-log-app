@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp, Activity } from "@/context/AppContext";
 
 export default function LogTab() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     activities,
     setActivities,
@@ -15,11 +16,13 @@ export default function LogTab() {
     showLoading,
     setIsLoading,
     setLoadingMsg,
+    confirmAction,
+    rhks,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all"); // "all", "today", "yesterday"
-  const [rhkFilter, setRhkFilter] = useState("all"); // "all", or RHK title
+  const [rhkFilter, setRhkFilter] = useState(() => searchParams.get("rhk") || "all");
 
   const handleEdit = (activity: Activity) => {
     setEditingActivity(activity);
@@ -34,12 +37,19 @@ export default function LogTab() {
     }, 350);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus kegiatan ini?")) {
-      await showLoading("Menghapus kegiatan...", 800);
-      setActivities((prev) => prev.filter((act) => act.id !== id));
-      triggerNotification("Kegiatan berhasil dihapus.");
-    }
+  const handleDelete = (id: string, title: string) => {
+    confirmAction({
+      title: "Hapus Kegiatan",
+      message: `Apakah Anda yakin ingin menghapus kegiatan "${title}"? Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Hapus",
+      cancelLabel: "Batal",
+      isDanger: true,
+      onConfirm: async () => {
+        await showLoading("Menghapus kegiatan...", 800);
+        setActivities((prev) => prev.filter((act) => act.id !== id));
+        triggerNotification("Kegiatan berhasil dihapus.");
+      },
+    });
   };
 
   const openAddModal = (preset: "BerAKHLAK" | "Tugas Rutin" | null) => {
@@ -171,10 +181,11 @@ export default function LogTab() {
               className="pl-8 pr-7 py-2 rounded-lg border border-outline-variant bg-surface text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-variant appearance-none cursor-pointer focus:outline-none max-w-[160px] truncate"
             >
               <option value="all">Semua RHK</option>
-              <option value="RHK #1: Penyusunan Rencana Strategis Tahunan">RHK #1</option>
-              <option value="RHK #2: Koordinasi Lintas Sektoral Kinerja Daerah">RHK #2</option>
-              <option value="RHK #3: Pengelolaan Pengarsipan Berkas Digital">RHK #3</option>
-              <option value="RHK #4: Evaluasi Mingguan Kepatuhan Administrasi">RHK #4</option>
+              {rhks.map((r, index) => (
+                <option key={r.id} value={r.title}>
+                  RHK #{index + 1}: {r.title}
+                </option>
+              ))}
             </select>
             <span className="material-symbols-outlined absolute right-2 pointer-events-none text-[16px] text-on-surface-variant">
               arrow_drop_down
@@ -221,7 +232,7 @@ export default function LogTab() {
                     <span className="material-symbols-outlined text-[20px]">edit</span>
                   </button>
                   <button
-                    onClick={() => handleDelete(act.id)}
+                    onClick={() => handleDelete(act.id, act.title)}
                     className="w-8 h-8 flex items-center justify-center rounded-full text-error hover:bg-error/10 active:scale-95 transition-all cursor-pointer border-none bg-transparent"
                     aria-label="Delete"
                   >

@@ -1,8 +1,138 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp, Activity } from "@/context/AppContext";
+import { DayPicker } from "react-day-picker";
+import { id } from "react-day-picker/locale";
+import "react-day-picker/style.css";
+import { createPortal } from "react-dom";
+import Select, { StylesConfig } from "react-select";
+
+interface OptionType {
+  value: string;
+  label: string;
+}
+
+const customSelectStyles: StylesConfig<OptionType, false> = {
+  container: (provided) => ({
+    ...provided,
+    width: "100%",
+    "@media (min-width: 640px)": {
+      width: "200px"
+    }
+  }),
+  control: (provided, state) => ({
+    ...provided,
+    borderColor: state.isFocused ? "var(--color-primary)" : "var(--color-outline-variant)",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(0, 35, 111, 0.15)" : "none",
+    backgroundColor: "var(--color-surface)",
+    borderRadius: "0.5rem",
+    minHeight: "38px",
+    height: "38px",
+    fontSize: "12px",
+    fontFamily: "var(--font-sans)",
+    width: "100%",
+    cursor: "pointer",
+    "&:hover": {
+      borderColor: "var(--color-outline)"
+    }
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: "0 8px 0 32px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+  }),
+  indicatorsContainer: (provided) => ({
+    ...provided,
+    height: "36px",
+  }),
+  menu: (provided) => ({
+    ...provided,
+    backgroundColor: "var(--color-surface-container-lowest)",
+    borderRadius: "0.5rem",
+    border: "1px solid var(--color-outline-variant)",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+    width: "280px",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? "var(--color-primary)"
+      : state.isFocused
+      ? "var(--color-surface-container-low)"
+      : "transparent",
+    color: state.isSelected
+      ? "var(--color-on-primary)"
+      : "var(--color-on-surface)",
+    fontSize: "12px",
+    cursor: "pointer",
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+    "&:active": {
+      backgroundColor: "var(--color-primary-fixed)"
+    }
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: "var(--color-on-surface)",
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "var(--color-outline)",
+  }),
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: 9999,
+  }),
+};
+
+const periodSelectStyles: StylesConfig<OptionType, false> = {
+  ...customSelectStyles,
+  container: (provided) => ({
+    ...provided,
+    width: "100%",
+    "@media (min-width: 640px)": {
+      width: "150px"
+    }
+  }),
+  control: (provided, state) => ({
+    ...provided,
+    borderColor: state.isFocused ? "var(--color-primary)" : "var(--color-outline-variant)",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(0, 35, 111, 0.15)" : "none",
+    backgroundColor: "var(--color-surface)",
+    borderRadius: "0.5rem",
+    minHeight: "38px",
+    height: "38px",
+    fontSize: "12px",
+    fontFamily: "var(--font-sans)",
+    width: "100%",
+    cursor: "pointer",
+    "&:hover": {
+      borderColor: "var(--color-outline)"
+    }
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: "0 8px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+  }),
+};
+
+const getTodayAndYesterday = () => {
+  const t = new Date();
+  const y = new Date(t.getTime() - 86400000);
+  return {
+    todayStr: t.toISOString().split("T")[0],
+    yesterdayStr: y.toISOString().split("T")[0],
+  };
+};
+
+const { todayStr, yesterdayStr } = getTodayAndYesterday();
 
 export default function LogTab() {
   const router = useRouter();
@@ -21,8 +151,153 @@ export default function LogTab() {
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("all"); // "all", "today", "yesterday"
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState(new Date().getFullYear().toString());
+  const [lastResolvedRhkParam, setLastResolvedRhkParam] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(""); // "" means Semua Tanggal
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [rhkFilter, setRhkFilter] = useState(() => searchParams.get("rhk") || "all");
+
+  const periodOptions = [
+    { value: "2026", label: "Tahunan 2026" },
+    { value: "2025", label: "Tahunan 2025" },
+    { value: "2024", label: "Tahunan 2024" },
+  ];
+
+  const handlePeriodChange = (val: OptionType | null) => {
+    const period = val ? val.value : new Date().getFullYear().toString();
+    setLoadingMsg("Memfilter periode...");
+    setIsLoading(true);
+    setTimeout(() => {
+      setSelectedPeriod(period);
+      setRhkFilter("all");
+      setIsLoading(false);
+    }, 300);
+  };
+
+  const updateCoords = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 6,
+        left: rect.left + window.scrollX,
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    
+    const frameId = requestAnimationFrame(() => {
+      handleResize();
+      setIsMounted(true);
+    });
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(frameId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isDatePickerOpen) {
+      updateCoords();
+      window.addEventListener("scroll", updateCoords, true);
+      window.addEventListener("resize", updateCoords);
+      return () => {
+        window.removeEventListener("scroll", updateCoords, true);
+        window.removeEventListener("resize", updateCoords);
+      };
+    }
+  }, [isDatePickerOpen]);
+
+  useEffect(() => {
+    if (!isDatePickerOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile) return;
+      const target = event.target as Node;
+      const clickedInsideButton = datePickerRef.current && datePickerRef.current.contains(target);
+      const clickedInsidePortal = portalRef.current && portalRef.current.contains(target);
+      if (!clickedInsideButton && !clickedInsidePortal) {
+        setIsDatePickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isDatePickerOpen, isMobile]);
+
+  // Search query logic with loading indicator
+  useEffect(() => {
+    if (searchQuery === debouncedSearch) return;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setIsLoading(false);
+    }, 400); // 400ms debounce
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearch, setIsLoading]);
+
+  useEffect(() => {
+    const rhkParam = searchParams.get("rhk");
+    if (!rhkParam) {
+      if (lastResolvedRhkParam !== null) {
+        requestAnimationFrame(() => {
+          setLastResolvedRhkParam(null);
+        });
+      }
+      return;
+    }
+    if (rhkParam !== lastResolvedRhkParam && rhks.length > 0) {
+      const targetRhk = rhks.find(r => r.title === rhkParam);
+      if (targetRhk) {
+        setLoadingMsg("Menyinkronkan logbook...");
+        setIsLoading(true);
+        setTimeout(() => {
+          setSelectedPeriod(targetRhk.period);
+          setRhkFilter(targetRhk.title);
+          setLastResolvedRhkParam(rhkParam);
+          setIsLoading(false);
+        }, 300);
+      }
+    }
+  }, [searchParams, rhks, lastResolvedRhkParam, setIsLoading, setLoadingMsg]);
+
+  const parseDateString = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  const formatDateToString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const getFormattedDateLabel = (dateStr: string) => {
+    if (!dateStr) return "Semua Tanggal";
+    try {
+      const dateObj = parseDateString(dateStr);
+      return dateObj.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   const handleEdit = (activity: Activity) => {
     setEditingActivity(activity);
@@ -75,10 +350,8 @@ export default function LogTab() {
   };
 
   const formatActivityDate = (dateStr: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    if (dateStr === today) return "Hari Ini";
-    if (dateStr === yesterday) return "Kemarin";
+    if (dateStr === todayStr) return "Hari Ini";
+    if (dateStr === yesterdayStr) return "Kemarin";
     
     // Format: YYYY-MM-DD -> DD MMM YYYY
     const parts = dateStr.split("-");
@@ -92,25 +365,49 @@ export default function LogTab() {
     return dateStr;
   };
 
+  const findAssociatedRhk = (rhkTitleOrId: string) => {
+    // 1. Try exact title match
+    let found = rhks.find((r) => r.title === rhkTitleOrId);
+    if (found) return found;
+
+    // 2. Try prefix "RHK #X" match for seeded activities
+    const match = rhkTitleOrId.match(/^RHK\s*#\s*(\d+)/i);
+    if (match) {
+      found = rhks.find((r) => r.id === `rhk-${match[1]}`) || rhks[parseInt(match[1]) - 1];
+      if (found) return found;
+    }
+    return undefined;
+  };
+
+  const rhkOptions = [
+    { value: "all", label: "Semua RHK" },
+    ...rhks
+      .filter((r) => r.period === selectedPeriod)
+      .map((r, index) => ({
+        value: r.title,
+        label: `RHK #${index + 1}: ${r.title}`,
+      })),
+  ];
+
   // Filter activities
   const filteredActivities = activities.filter((act) => {
     const matchesSearch =
-      act.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      act.rhk.toLowerCase().includes(searchQuery.toLowerCase());
+      act.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      act.rhk.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const matchesDate = !selectedDate || act.date === selectedDate;
     
-    let matchesDate = true;
-    if (dateFilter === "today") {
-      matchesDate = act.date === today;
-    } else if (dateFilter === "yesterday") {
-      matchesDate = act.date === yesterday;
+    // Check if the activity's RHK belongs to the selected period
+    const associatedRhk = findAssociatedRhk(act.rhk);
+    const matchesPeriod = associatedRhk ? associatedRhk.period === selectedPeriod : true;
+
+    let matchesRhk = true;
+    if (rhkFilter !== "all") {
+      const actRhkObj = findAssociatedRhk(act.rhk);
+      matchesRhk = actRhkObj ? actRhkObj.title === rhkFilter : act.rhk === rhkFilter;
     }
 
-    const matchesRhk = rhkFilter === "all" || act.rhk === rhkFilter;
-
-    return matchesSearch && matchesDate && matchesRhk;
+    return matchesSearch && matchesDate && matchesPeriod && matchesRhk;
   });
 
   return (
@@ -143,53 +440,212 @@ export default function LogTab() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchQuery(val);
+              if (val !== debouncedSearch) {
+                setLoadingMsg("Mencari kegiatan...");
+                setIsLoading(true);
+              }
+            }}
             className="w-full h-10 pl-10 pr-4 rounded-lg border border-outline-variant bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-body-sm text-body-sm text-on-surface placeholder:text-outline transition-shadow"
             placeholder="Cari kegiatan..."
           />
         </div>
 
-        {/* Horizontal scrollable selectors */}
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+        {/* Responsive filters list */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Period Filter Dropdown Button */}
+          <div className="relative flex items-center w-full sm:w-auto">
+            <Select
+              className="w-full"
+              instanceId="log-period-select"
+              value={periodOptions.find((opt) => opt.value === selectedPeriod) || null}
+              onChange={handlePeriodChange}
+              options={periodOptions}
+              styles={periodSelectStyles}
+              placeholder="Periode..."
+              isSearchable={false}
+              menuPortalTarget={isMounted ? document.body : null}
+            />
+          </div>
+
           {/* Date Filter Dropdown Button */}
-          <div className="relative flex items-center flex-shrink-0">
-            <span className="material-symbols-outlined absolute left-2.5 pointer-events-none text-[18px] text-on-surface-variant">
-              calendar_today
-            </span>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-8 pr-7 py-2 rounded-lg border border-outline-variant bg-surface text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-variant appearance-none cursor-pointer focus:outline-none"
+          <div className="relative flex items-center w-full sm:w-auto" ref={datePickerRef}>
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={() => setIsDatePickerOpen(prev => !prev)}
+              className={`w-full sm:w-[180px] pl-10 pr-3 py-2 rounded-lg border font-label-sm text-label-sm hover:bg-surface-variant flex items-center justify-between gap-1.5 cursor-pointer focus:outline-none transition-all ${
+                selectedDate 
+                  ? "border-primary bg-primary-container/20 text-primary" 
+                  : "border-outline-variant bg-surface text-on-surface-variant"
+              }`}
             >
-              <option value="all">Semua Tanggal</option>
-              <option value="today">Hari Ini</option>
-              <option value="yesterday">Kemarin</option>
-            </select>
-            <span className="material-symbols-outlined absolute right-2 pointer-events-none text-[16px] text-on-surface-variant">
-              arrow_drop_down
-            </span>
+              <span className="material-symbols-outlined absolute left-2.5 pointer-events-none text-[18px]">
+                calendar_today
+              </span>
+              <span className="truncate">{getFormattedDateLabel(selectedDate)}</span>
+              {selectedDate ? (
+                <span 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLoadingMsg("Mengatur ulang tanggal...");
+                    setIsLoading(true);
+                    setTimeout(() => {
+                      setSelectedDate("");
+                      setIsDatePickerOpen(false);
+                      setIsLoading(false);
+                    }, 300);
+                  }}
+                  className="material-symbols-outlined text-[16px] hover:text-error transition-colors p-0.5 rounded-full hover:bg-surface-variant"
+                >
+                  close
+                </span>
+              ) : (
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                  arrow_drop_down
+                </span>
+              )}
+            </button>
+
+            {/* Popover/Modal content */}
+            {isDatePickerOpen && isMounted && (
+              <>
+                {isMobile ? (
+                  // Mobile Center Modal with Backdrop
+                  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-fade-in">
+                    {/* Overlay Backdrop close handler */}
+                    <div className="absolute inset-0 cursor-pointer" onClick={() => setIsDatePickerOpen(false)} />
+                    
+                    {/* Modal Card */}
+                    <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl p-4 max-w-[340px] w-full loader-card-enter z-50 flex flex-col items-center">
+                      <div className="w-full flex items-center justify-between border-b border-outline-variant pb-2.5 mb-3">
+                        <span className="font-headline-md text-sm text-on-surface font-bold">Filter Tanggal</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsDatePickerOpen(false)}
+                          className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+                        >
+                          <span className="material-symbols-outlined text-lg">close</span>
+                        </button>
+                      </div>
+                      
+                      <DayPicker
+                        mode="single"
+                        selected={selectedDate ? parseDateString(selectedDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const formatted = formatDateToString(date);
+                            setLoadingMsg("Memfilter tanggal...");
+                            setIsLoading(true);
+                            setTimeout(() => {
+                              setSelectedDate(formatted);
+                              setIsDatePickerOpen(false);
+                              setIsLoading(false);
+                            }, 300);
+                          }
+                        }}
+                        locale={id}
+                      />
+
+                      {selectedDate && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoadingMsg("Mengatur ulang tanggal...");
+                            setIsLoading(true);
+                            setTimeout(() => {
+                              setSelectedDate("");
+                              setIsDatePickerOpen(false);
+                              setIsLoading(false);
+                            }, 300);
+                          }}
+                          className="mt-3 w-full py-2 bg-surface border border-outline-variant text-error font-label-sm text-xs rounded-lg hover:bg-error-container/10 transition-colors cursor-pointer"
+                        >
+                          Hapus Filter Tanggal
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  // Desktop Dropdown via Portal
+                  createPortal(
+                    <div 
+                      ref={portalRef}
+                      style={{
+                        position: "absolute",
+                        top: `${coords.top}px`,
+                        left: `${coords.left}px`,
+                      }}
+                      className="z-[9999] bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xl p-4 loader-card-enter w-fit flex flex-col items-center"
+                    >
+                      <DayPicker
+                        mode="single"
+                        selected={selectedDate ? parseDateString(selectedDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const formatted = formatDateToString(date);
+                            setLoadingMsg("Memfilter tanggal...");
+                            setIsLoading(true);
+                            setTimeout(() => {
+                              setSelectedDate(formatted);
+                              setIsDatePickerOpen(false);
+                              setIsLoading(false);
+                            }, 300);
+                          }
+                        }}
+                        locale={id}
+                      />
+                      {selectedDate && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoadingMsg("Mengatur ulang tanggal...");
+                            setIsLoading(true);
+                            setTimeout(() => {
+                              setSelectedDate("");
+                              setIsDatePickerOpen(false);
+                              setIsLoading(false);
+                            }, 300);
+                          }}
+                          className="mt-2 w-full py-1.5 bg-surface border border-outline-variant text-error font-label-sm text-xs rounded-lg hover:bg-error-container/10 transition-colors cursor-pointer"
+                        >
+                          Hapus Filter Tanggal
+                        </button>
+                      )}
+                    </div>,
+                    document.body
+                  )
+                )}
+              </>
+            )}
           </div>
 
           {/* RHK Filter Dropdown Button */}
-          <div className="relative flex items-center flex-shrink-0">
-            <span className="material-symbols-outlined absolute left-2.5 pointer-events-none text-[18px] text-on-surface-variant">
+          <div className="relative flex items-center w-full sm:w-auto">
+            <span className="material-symbols-outlined absolute left-2.5 pointer-events-none text-[18px] text-on-surface-variant z-10">
               filter_list
             </span>
-            <select
-              value={rhkFilter}
-              onChange={(e) => setRhkFilter(e.target.value)}
-              className="pl-8 pr-7 py-2 rounded-lg border border-outline-variant bg-surface text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-variant appearance-none cursor-pointer focus:outline-none max-w-[160px] truncate"
-            >
-              <option value="all">Semua RHK</option>
-              {rhks.map((r, index) => (
-                <option key={r.id} value={r.title}>
-                  RHK #{index + 1}: {r.title}
-                </option>
-              ))}
-            </select>
-            <span className="material-symbols-outlined absolute right-2 pointer-events-none text-[16px] text-on-surface-variant">
-              arrow_drop_down
-            </span>
+            <Select
+              className="w-full"
+              instanceId="log-rhk-select"
+              value={rhkOptions.find((opt) => opt.value === rhkFilter) || null}
+              onChange={(val) => {
+                const rhkVal = val ? val.value : "all";
+                setLoadingMsg("Memfilter RHK...");
+                setIsLoading(true);
+                setTimeout(() => {
+                  setRhkFilter(rhkVal);
+                  setIsLoading(false);
+                }, 300);
+              }}
+              options={rhkOptions}
+              styles={customSelectStyles}
+              placeholder="Pilih RHK..."
+              isSearchable={false}
+              menuPortalTarget={isMounted ? document.body : null}
+            />
           </div>
         </div>
       </div>
@@ -214,12 +670,8 @@ export default function LogTab() {
 
               {/* Card Header */}
               <div className="flex justify-between items-center pl-1">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                  act.category === "BerAKHLAK"
-                    ? "bg-[#D1FAE5] text-[#065F46]"
-                    : "bg-surface-container-high text-on-surface-variant"
-                }`}>
-                  {act.category}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D1FAE5] text-[#065F46]`}>
+                  Kegiatan
                 </span>
                 
                 {/* Actions */}
@@ -248,9 +700,9 @@ export default function LogTab() {
 
               {/* Time */}
               <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-xs pl-1">
-                <span className="material-symbols-outlined text-[16px] text-outline">schedule</span>
+                <span className="material-symbols-outlined text-[16px] text-outline">calendar_today</span>
                 <span>
-                  {formatActivityDate(act.date)}{act.timeStart && act.timeEnd ? `, ${act.timeStart} - ${act.timeEnd}` : ""}
+                  Tanggal Input: {formatActivityDate(act.date)}
                 </span>
               </div>
 

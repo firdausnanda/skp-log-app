@@ -91,7 +91,7 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  const handlePeriodChange = (val: any) => {
+  const handlePeriodChange = (val: OptionType | null) => {
     const period = val ? val.value : new Date().getFullYear().toString();
     setLoadingMsg("Memfilter RHK...");
     setIsLoading(true);
@@ -101,7 +101,7 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
     }, 300);
   };
 
-  const handleCategoryChange = (val: any) => {
+  const handleCategoryChange = (val: OptionType | null) => {
     const category = val ? val.value : "Semua Kategori";
     setLoadingMsg("Memfilter RHK...");
     setIsLoading(true);

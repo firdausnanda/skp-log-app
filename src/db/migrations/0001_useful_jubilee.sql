@@ -1,0 +1,1 @@
+ALTER TABLE `rencana_kinerja` ADD `bulan_pelaksanaan` json DEFAULT ('[]') NOT NULL;

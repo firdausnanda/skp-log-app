@@ -6,14 +6,7 @@ import Select, { StylesConfig } from "react-select";
 import { useApp, Activity } from "@/context/AppContext";
 import DatePicker from "@/components/DatePicker";
 
-const outputOptions = [
-  { value: "Dokumen", label: "Dokumen" },
-  { value: "Notulensi", label: "Notulensi" },
-  { value: "Laporan", label: "Laporan" },
-  { value: "Berkas", label: "Berkas" },
-  { value: "Foto", label: "Foto" },
-  { value: "Lainnya", label: "Lainnya" },
-];
+
 
 interface OptionType {
   value: string;
@@ -300,39 +293,7 @@ export default function AddActivityPage() {
             />
           </div>
 
-          {/* Output Card */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-label-md text-xs font-semibold text-on-surface-variant mb-1.5">
-                  Jumlah Output
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={outputCount}
-                  onChange={(e) => setOutputCount(parseInt(e.target.value) || 1)}
-                  className="w-full bg-surface-bright border border-outline-variant rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                />
-              </div>
-              <div>
-                <label className="block font-label-md text-xs font-semibold text-on-surface-variant mb-1.5">
-                  Jenis Output
-                </label>
-                <Select
-                  instanceId="input-output-select"
-                  value={outputOptions.find((opt) => opt.value === outputType) || null}
-                  onChange={(val) => setOutputType(val ? val.value : "Dokumen")}
-                  options={outputOptions}
-                  styles={customSelectStyles}
-                  placeholder="Output..."
-                  isSearchable={false}
-                  menuPortalTarget={typeof window !== "undefined" ? document.body : null}
-                />
-              </div>
-            </div>
-          </div>
+
 
           {/* Evidence Section */}
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">

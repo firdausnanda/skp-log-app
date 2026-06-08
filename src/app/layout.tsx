@@ -15,8 +15,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "App Log SKP - Mobile Dashboard",
-  description: "Dashboard KinerjaLog - Sasaran Kinerja Pegawai Digital Assistant",
+  title: "WorkLog SKP - Mobile Dashboard",
+  description: "Dashboard WorkLog - Jurnal SKP Pegawai Digital Assistant",
 };
 
 export default function RootLayout({

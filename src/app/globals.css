@@ -1,26 +1,378 @@
 @import "tailwindcss";
+@import "react-day-picker/style.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --green-900: #14532d;
+  --green-700: #15803d;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@theme {
+  --color-on-primary-fixed-variant: #166534;
+  --color-inverse-on-surface: #eaf1ff;
+  --color-background: #f8f9ff;
+  --color-on-surface-variant: #444651;
+  --color-on-primary: #ffffff;
+  --color-on-error: #ffffff;
+  --color-surface-bright: #f8f9ff;
+  --color-tertiary-fixed-dim: #c0c1ff;
+  --color-tertiary: #0d0097;
+  --color-surface-container: #e5eeff;
+  --color-on-primary-fixed: #14532d;
+  --color-surface-container-highest: #d3e4fe;
+  --color-on-surface: #0b1c30;
+  --color-outline-variant: #c5c5d3;
+  --color-on-primary-container: #bbf7d0;
+  --color-on-secondary: #ffffff;
+  --color-on-error-container: #93000a;
+  --color-error: #ba1a1a;
+  --color-surface-tint: #15803d;
+  --color-surface-dim: #cbdbf5;
+  --color-inverse-primary: #bbf7d0;
+  --color-surface: #f8f9ff;
+  --color-outline: #757682;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-variant: #d3e4fe;
+  --color-inverse-surface: #213145;
+  --color-error-container: #ffdad6;
+  --color-tertiary-fixed: #e1e0ff;
+  --color-tertiary-container: #2724b8;
+  --color-primary-fixed-dim: #bbf7d0;
+  --color-on-tertiary-fixed-variant: #2f2ebe;
+  --color-surface-container-low: #eff4ff;
+  --color-on-secondary-container: #00714d;
+  --color-secondary-fixed-dim: #4edea3;
+  --color-secondary-container: #6cf8bb;
+  --color-on-tertiary: #ffffff;
+  --color-surface-container-high: #dce9ff;
+  --color-secondary-fixed: #6ffbbe;
+  --color-primary: #15803d;
+  --color-on-tertiary-container: #a1a4ff;
+  --color-on-secondary-fixed-variant: #005236;
+  --color-on-background: #0b1c30;
+  --color-secondary: #006c49;
+  --color-primary-fixed: #dcfce7;
+  --color-on-secondary-fixed: #002113;
+  --color-primary-container: #166534;
+  --color-on-tertiary-fixed: #07006c;
+
+  --size-container-max: 1280px;
+
+  --font-sans: var(--font-inter), sans-serif;
+  --font-plus-jakarta-sans: var(--font-plus-jakarta-sans), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@utility bg-primary {
+  background: linear-gradient(135deg, var(--green-900) 0%, var(--green-700) 100%);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-on-background);
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Custom Typography Utilities from the Design System */
+.font-headline-md {
+  font-family: var(--font-plus-jakarta-sans);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+.font-body-md {
+  font-family: var(--font-inter);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+.font-label-sm {
+  font-family: var(--font-inter);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.font-headline-lg-mobile {
+  font-family: var(--font-plus-jakarta-sans);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+}
+.font-body-lg {
+  font-family: var(--font-inter);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+.font-headline-lg {
+  font-family: var(--font-plus-jakarta-sans);
+  font-size: 28px;
+  line-height: 36px;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
+.font-headline-xl {
+  font-family: var(--font-plus-jakarta-sans);
+  font-size: 36px;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.font-body-sm {
+  font-family: var(--font-inter);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+.font-label-md {
+  font-family: var(--font-inter);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+/* Specific text size & weight utilities */
+.text-headline-xl {
+  font-size: 36px;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.text-headline-md {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+.text-label-sm {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.text-label-md {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.text-body-sm {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+/* Hide scrollbars while maintaining scroll functionality */
+.scrollbar-none::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none,
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Custom Professional Loader Animations */
+@keyframes loader-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes loader-pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+}
+
+.loader-card-enter {
+  animation: loader-fade-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-subtle {
+  animation: loader-pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Custom React DayPicker Styles matching the premium Green theme */
+.rdp-root {
+  --rdp-accent-color: var(--color-primary) !important;
+  --rdp-accent-background-color: var(--color-primary-fixed) !important;
+  --rdp-day_button-border-radius: 8px !important;
+  --rdp-day-height: 40px !important;
+  --rdp-day-width: 40px !important;
+  --rdp-day_button-height: 36px !important;
+  --rdp-day_button-width: 36px !important;
+  --rdp-nav_button-height: 32px !important;
+  --rdp-nav_button-width: 32px !important;
+  --rdp-nav-height: 40px !important;
+  margin: 0 auto;
+}
+
+/* Reset table styling inside day picker to prevent Tailwind from adding border/padding gaps */
+.rdp-month_grid {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.rdp-month_grid td,
+.rdp-month_grid th {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  text-align: center !important;
+  background: transparent !important;
+}
+
+.rdp-months {
+  justify-content: center !important;
+}
+
+.rdp-month_caption {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  height: 40px !important;
+  padding-left: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+.rdp-caption_label {
+  font-family: var(--font-plus-jakarta-sans) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--color-on-background) !important;
+  text-transform: capitalize !important;
+}
+
+.rdp-nav {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: 40px !important;
+}
+
+/* Navigation button styling */
+.rdp-button_next,
+.rdp-button_previous {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border: 1px solid var(--color-outline-variant) !important;
+  border-radius: 8px !important;
+  background-color: var(--color-surface-bright) !important;
+  color: var(--color-on-surface-variant) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.rdp-button_next:hover:not(:disabled),
+.rdp-button_previous:hover:not(:disabled) {
+  background-color: var(--color-surface-container-high) !important;
+  border-color: var(--color-outline) !important;
+  color: var(--color-primary) !important;
+}
+
+.rdp-chevron {
+  fill: currentColor !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: inline-block !important;
+}
+
+.rdp-weekdays {
+  border-bottom: 1px solid var(--color-outline-variant) !important;
+}
+
+.rdp-weekday {
+  width: 40px !important;
+  height: 36px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--color-outline) !important;
+  text-transform: uppercase !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.rdp-day {
+  width: 40px !important;
+  height: 40px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* Day button styling */
+.rdp-day_button {
+  width: 36px !important;
+  height: 36px !important;
+  margin: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--color-on-background) !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+/* Hover state for day buttons */
+.rdp-day_button:hover:not(:disabled) {
+  background-color: var(--color-surface-container-high) !important;
+  color: var(--color-on-surface) !important;
+}
+
+/* Selected day styling */
+.rdp-selected .rdp-day_button {
+  background-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border-color: var(--color-primary) !important;
+  font-weight: 600 !important;
+}
+
+.rdp-selected .rdp-day_button:hover:not(:disabled) {
+  background-color: var(--color-primary-container) !important;
+  color: var(--color-on-primary) !important;
+}
+
+/* Today day styling */
+.rdp-today:not(.rdp-outside) .rdp-day_button {
+  color: var(--color-primary) !important;
+  font-weight: 700 !important;
+  border: 1px solid var(--color-primary-fixed-dim) !important;
+}
+
+/* Outside and Disabled days */
+.rdp-outside .rdp-day_button {
+  color: var(--color-outline-variant) !important;
+  opacity: 0.5 !important;
+}
+
+.rdp-disabled .rdp-day_button {
+  color: var(--color-outline-variant) !important;
+  opacity: 0.25 !important;
+  cursor: not-allowed !important;
+}
+
+

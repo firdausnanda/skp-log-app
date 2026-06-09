@@ -38,6 +38,10 @@ interface AppContextType {
   setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
   rhkCount: number;
   setRhkCount: React.Dispatch<React.SetStateAction<number>>;
+  rhkProgress: number;
+  setRhkProgress: React.Dispatch<React.SetStateAction<number>>;
+  buktiDukungCount: number;
+  setBuktiDukungCount: React.Dispatch<React.SetStateAction<number>>;
   rhks: RhkItem[];
   setRhks: React.Dispatch<React.SetStateAction<RhkItem[]>>;
   showAddModal: boolean;
@@ -117,6 +121,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [activitiesCount, setActivitiesCount] = useState(0);
   const [rhkCount, setRhkCount] = useState(4);
+  const [rhkProgress, setRhkProgress] = useState(0);
+  const [buktiDukungCount, setBuktiDukungCount] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activityCategoryPreset, setActivityCategoryPreset] = useState<"BerAKHLAK" | "Tugas Rutin" | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -205,12 +211,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [session]);
 
   useEffect(() => {
-    const activeLogs = activities.filter((act) => act.category !== "BerAKHLAK");
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthStr = String(now.getMonth() + 1).padStart(2, "0");
+    const yearMonthPrefix = `${currentYear}-${currentMonthStr}`;
+
+    const activeLogs = activities.filter(
+      (act) => act.category !== "BerAKHLAK" && act.date.startsWith(yearMonthPrefix)
+    );
     setActivitiesCount(activeLogs.length);
   }, [activities]);
 
   useEffect(() => {
     setRhkCount(rhks.length);
+  }, [rhks]);
+
+  useEffect(() => {
+    const total = activities.reduce((sum, act) => sum + (act.attachments?.length || 0), 0);
+    setBuktiDukungCount(total);
+  }, [activities]);
+
+  useEffect(() => {
+    const totalTarget = rhks.reduce((sum, item) => sum + item.targetProgress, 0);
+    const totalCurrent = rhks.reduce((sum, item) => sum + Math.min(item.currentProgress, item.targetProgress), 0);
+    const progress = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+    setRhkProgress(progress);
   }, [rhks]);
 
   useEffect(() => {
@@ -242,6 +267,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActivities,
         rhkCount,
         setRhkCount,
+        rhkProgress,
+        setRhkProgress,
+        buktiDukungCount,
+        setBuktiDukungCount,
         rhks,
         setRhks,
         showAddModal,

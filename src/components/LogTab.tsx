@@ -1,12 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp, Activity } from "@/context/AppContext";
-import { DayPicker } from "react-day-picker";
-import { id } from "react-day-picker/locale";
-import "react-day-picker/style.css";
-import { createPortal } from "react-dom";
 import Select, { StylesConfig } from "react-select";
 
 interface OptionType {
@@ -123,16 +119,21 @@ const periodSelectStyles: StylesConfig<OptionType, false> = {
   }),
 };
 
-const getTodayAndYesterday = () => {
-  const t = new Date();
-  const y = new Date(t.getTime() - 86400000);
-  return {
-    todayStr: t.toISOString().split("T")[0],
-    yesterdayStr: y.toISOString().split("T")[0],
-  };
-};
-
-const { todayStr, yesterdayStr } = getTodayAndYesterday();
+const monthOptions = [
+  { value: "all", label: "Semua Bulan" },
+  { value: "0", label: "Januari" },
+  { value: "1", label: "Februari" },
+  { value: "2", label: "Maret" },
+  { value: "3", label: "April" },
+  { value: "4", label: "Mei" },
+  { value: "5", label: "Juni" },
+  { value: "6", label: "Juli" },
+  { value: "7", label: "Agustus" },
+  { value: "8", label: "September" },
+  { value: "9", label: "Oktober" },
+  { value: "10", label: "November" },
+  { value: "11", label: "Desember" }
+];
 
 export default function LogTab() {
   const router = useRouter();
@@ -154,14 +155,9 @@ export default function LogTab() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().getFullYear().toString());
   const [lastResolvedRhkParam, setLastResolvedRhkParam] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(""); // "" means Semua Tanggal
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>("all"); // "all" means Semua Bulan
   const [isMobile, setIsMobile] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const datePickerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const portalRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [rhkFilter, setRhkFilter] = useState(() => searchParams.get("rhk") || "all");
 
   const periodOptions = [
@@ -181,16 +177,6 @@ export default function LogTab() {
     }, 300);
   };
 
-  const updateCoords = () => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + window.scrollY + 6,
-        left: rect.left + window.scrollX,
-      });
-    }
-  };
-
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -208,34 +194,15 @@ export default function LogTab() {
     };
   }, []);
 
-  useEffect(() => {
-    if (isDatePickerOpen) {
-      updateCoords();
-      window.addEventListener("scroll", updateCoords, true);
-      window.addEventListener("resize", updateCoords);
-      return () => {
-        window.removeEventListener("scroll", updateCoords, true);
-        window.removeEventListener("resize", updateCoords);
-      };
-    }
-  }, [isDatePickerOpen]);
-
-  useEffect(() => {
-    if (!isDatePickerOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isMobile) return;
-      const target = event.target as Node;
-      const clickedInsideButton = datePickerRef.current && datePickerRef.current.contains(target);
-      const clickedInsidePortal = portalRef.current && portalRef.current.contains(target);
-      if (!clickedInsideButton && !clickedInsidePortal) {
-        setIsDatePickerOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isDatePickerOpen, isMobile]);
+  const handleMonthChange = (val: OptionType | null) => {
+    const monthVal = val ? val.value : "all";
+    setLoadingMsg("Memfilter bulan...");
+    setIsLoading(true);
+    setTimeout(() => {
+      setSelectedMonth(monthVal);
+      setIsLoading(false);
+    }, 300);
+  };
 
   // Search query logic with loading indicator
   useEffect(() => {
@@ -272,32 +239,7 @@ export default function LogTab() {
     }
   }, [searchParams, rhks, lastResolvedRhkParam, setIsLoading, setLoadingMsg]);
 
-  const parseDateString = (dateStr: string): Date => {
-    if (!dateStr) return new Date();
-    const [year, month, day] = dateStr.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  };
 
-  const formatDateToString = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const getFormattedDateLabel = (dateStr: string) => {
-    if (!dateStr) return "Semua Tanggal";
-    try {
-      const dateObj = parseDateString(dateStr);
-      return dateObj.toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
 
   const handleEdit = (activity: Activity) => {
     setEditingActivity(activity);
@@ -420,7 +362,14 @@ export default function LogTab() {
       act.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       act.rhk.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-    const matchesDate = !selectedDate || act.date === selectedDate;
+    let matchesMonth = true;
+    if (selectedMonth !== "all") {
+      const parts = act.date.split("-");
+      if (parts.length === 3) {
+        const monthIndex = parseInt(parts[1], 10) - 1;
+        matchesMonth = monthIndex.toString() === selectedMonth;
+      }
+    }
     
     // Check if the activity's RHK belongs to the selected period
     const associatedRhk = findAssociatedRhk(act.rhk);
@@ -432,7 +381,7 @@ export default function LogTab() {
       matchesRhk = actRhkObj ? actRhkObj.title === rhkFilter : act.rhk === rhkFilter;
     }
 
-    return matchesSearch && matchesDate && matchesPeriod && matchesRhk;
+    return matchesSearch && matchesMonth && matchesPeriod && matchesRhk;
   });
 
   return (
@@ -495,156 +444,19 @@ export default function LogTab() {
             />
           </div>
 
-          {/* Date Filter Dropdown Button */}
-          <div className="relative flex items-center w-full sm:w-auto" ref={datePickerRef}>
-            <button
-              ref={buttonRef}
-              type="button"
-              onClick={() => setIsDatePickerOpen(prev => !prev)}
-              className={`w-full sm:w-[180px] pl-10 pr-3 py-2 rounded-lg border font-label-sm text-label-sm hover:bg-surface-variant flex items-center justify-between gap-1.5 cursor-pointer focus:outline-none transition-all ${
-                selectedDate 
-                  ? "border-primary bg-primary-container/20 text-primary" 
-                  : "border-outline-variant bg-surface text-on-surface-variant"
-              }`}
-            >
-              <span className="material-symbols-outlined absolute left-2.5 pointer-events-none text-[18px]">
-                calendar_today
-              </span>
-              <span className="truncate">{getFormattedDateLabel(selectedDate)}</span>
-              {selectedDate ? (
-                <span 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLoadingMsg("Mengatur ulang tanggal...");
-                    setIsLoading(true);
-                    setTimeout(() => {
-                      setSelectedDate("");
-                      setIsDatePickerOpen(false);
-                      setIsLoading(false);
-                    }, 300);
-                  }}
-                  className="material-symbols-outlined text-[16px] hover:text-error transition-colors p-0.5 rounded-full hover:bg-surface-variant"
-                >
-                  close
-                </span>
-              ) : (
-                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
-                  arrow_drop_down
-                </span>
-              )}
-            </button>
-
-            {/* Popover/Modal content */}
-            {isDatePickerOpen && isMounted && (
-              <>
-                {isMobile ? (
-                  // Mobile Center Modal with Backdrop
-                  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-fade-in">
-                    {/* Overlay Backdrop close handler */}
-                    <div className="absolute inset-0 cursor-pointer" onClick={() => setIsDatePickerOpen(false)} />
-                    
-                    {/* Modal Card */}
-                    <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl p-4 max-w-[340px] w-full loader-card-enter z-50 flex flex-col items-center">
-                      <div className="w-full flex items-center justify-between border-b border-outline-variant pb-2.5 mb-3">
-                        <span className="font-headline-md text-sm text-on-surface font-bold">Filter Tanggal</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsDatePickerOpen(false)}
-                          className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
-                        >
-                          <span className="material-symbols-outlined text-lg">close</span>
-                        </button>
-                      </div>
-                      
-                      <DayPicker
-                        mode="single"
-                        selected={selectedDate ? parseDateString(selectedDate) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            const formatted = formatDateToString(date);
-                            setLoadingMsg("Memfilter tanggal...");
-                            setIsLoading(true);
-                            setTimeout(() => {
-                              setSelectedDate(formatted);
-                              setIsDatePickerOpen(false);
-                              setIsLoading(false);
-                            }, 300);
-                          }
-                        }}
-                        locale={id}
-                      />
-
-                      {selectedDate && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLoadingMsg("Mengatur ulang tanggal...");
-                            setIsLoading(true);
-                            setTimeout(() => {
-                              setSelectedDate("");
-                              setIsDatePickerOpen(false);
-                              setIsLoading(false);
-                            }, 300);
-                          }}
-                          className="mt-3 w-full py-2 bg-surface border border-outline-variant text-error font-label-sm text-xs rounded-lg hover:bg-error-container/10 transition-colors cursor-pointer"
-                        >
-                          Hapus Filter Tanggal
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  // Desktop Dropdown via Portal
-                  createPortal(
-                    <div 
-                      ref={portalRef}
-                      style={{
-                        position: "absolute",
-                        top: `${coords.top}px`,
-                        left: `${coords.left}px`,
-                      }}
-                      className="z-[9999] bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-xl p-4 loader-card-enter w-fit flex flex-col items-center"
-                    >
-                      <DayPicker
-                        mode="single"
-                        selected={selectedDate ? parseDateString(selectedDate) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            const formatted = formatDateToString(date);
-                            setLoadingMsg("Memfilter tanggal...");
-                            setIsLoading(true);
-                            setTimeout(() => {
-                              setSelectedDate(formatted);
-                              setIsDatePickerOpen(false);
-                              setIsLoading(false);
-                            }, 300);
-                          }
-                        }}
-                        locale={id}
-                      />
-                      {selectedDate && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLoadingMsg("Mengatur ulang tanggal...");
-                            setIsLoading(true);
-                            setTimeout(() => {
-                              setSelectedDate("");
-                              setIsDatePickerOpen(false);
-                              setIsLoading(false);
-                            }, 300);
-                          }}
-                          className="mt-2 w-full py-1.5 bg-surface border border-outline-variant text-error font-label-sm text-xs rounded-lg hover:bg-error-container/10 transition-colors cursor-pointer"
-                        >
-                          Hapus Filter Tanggal
-                        </button>
-                      )}
-                    </div>,
-                    document.body
-                  )
-                )}
-              </>
-            )}
+          {/* Month Filter Dropdown Button */}
+          <div className="relative flex items-center w-full sm:w-auto">
+            <Select
+              className="w-full"
+              instanceId="log-month-select"
+              value={monthOptions.find((opt) => opt.value === selectedMonth) || monthOptions[0]}
+              onChange={handleMonthChange}
+              options={monthOptions}
+              styles={periodSelectStyles}
+              placeholder="Pilih Bulan..."
+              isSearchable={false}
+              menuPortalTarget={isMounted ? document.body : null}
+            />
           </div>
 
           {/* RHK Filter Dropdown Button */}

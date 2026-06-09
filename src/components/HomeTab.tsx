@@ -2,12 +2,21 @@ import React from "react";
 
 interface HomeTabProps {
   rhkCount: number;
+  rhkProgress: number;
   activitiesCount: number;
+  buktiDukungCount: number;
   onAddClick: () => void;
   onReportClick: () => void;
 }
 
-export default function HomeTab({ rhkCount, activitiesCount, onAddClick, onReportClick }: HomeTabProps) {
+export default function HomeTab({
+  rhkCount,
+  rhkProgress,
+  activitiesCount,
+  buktiDukungCount,
+  onAddClick,
+  onReportClick,
+}: HomeTabProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* Main Actions */}
@@ -48,7 +57,7 @@ export default function HomeTab({ rhkCount, activitiesCount, onAddClick, onRepor
             <span className="font-body-sm text-body-sm text-outline">Rencana</span>
           </div>
           <div className="w-full bg-surface-container-highest rounded-full h-2.5 mt-1 overflow-hidden">
-            <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: "80%" }}></div>
+            <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${rhkProgress}%` }}></div>
           </div>
         </div>
 
@@ -69,7 +78,7 @@ export default function HomeTab({ rhkCount, activitiesCount, onAddClick, onRepor
         <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-[0px_2px_8px_rgba(0,0,0,0.04)] flex flex-col gap-3 hover:shadow-md transition-shadow">
           <h2 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Bukti Dukung</h2>
           <div className="flex items-baseline gap-2">
-            <span className="font-headline-xl text-headline-xl text-on-surface">38</span>
+            <span className="font-headline-xl text-headline-xl text-on-surface">{buktiDukungCount}</span>
             <span className="font-body-sm text-body-sm text-outline">Dokumen</span>
           </div>
           <div className="font-body-sm text-body-sm text-secondary flex items-center gap-2 mt-1 font-medium">

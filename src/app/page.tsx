@@ -7,7 +7,7 @@ import HomeTab from "@/components/HomeTab";
 
 export default function Home() {
   const router = useRouter();
-  const { rhkCount, activitiesCount, setIsLoading, setLoadingMsg } = useApp();
+  const { rhkCount, rhkProgress, activitiesCount, buktiDukungCount, setIsLoading, setLoadingMsg } = useApp();
 
   const handleAddClick = () => {
     setLoadingMsg("Memuat halaman...");
@@ -28,7 +28,9 @@ export default function Home() {
   return (
     <HomeTab
       rhkCount={rhkCount}
+      rhkProgress={rhkProgress}
       activitiesCount={activitiesCount}
+      buktiDukungCount={buktiDukungCount}
       onAddClick={handleAddClick}
       onReportClick={handleReportClick}
     />

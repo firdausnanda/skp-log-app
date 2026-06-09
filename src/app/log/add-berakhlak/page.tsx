@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp, Activity } from "@/context/AppContext";
 import DatePicker from "@/components/DatePicker";
 import dynamic from "next/dynamic";
@@ -21,8 +21,10 @@ const coreValues = [
   { name: "Kolaboratif", icon: "handshake" },
 ];
 
-export default function AddBerakhlakPage() {
+function AddBerakhlakForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const valueParam = searchParams.get("value");
   const {
     rhks,
     setActivities,
@@ -44,8 +46,21 @@ export default function AddBerakhlakPage() {
         }
       }
     }
+    if (valueParam) {
+      const matched = coreValues.find((v) => v.name.toLowerCase() === valueParam.toLowerCase());
+      if (matched) return matched.name;
+    }
     return "Berorientasi Pelayanan";
   });
+
+  useEffect(() => {
+    if (!editingActivity && valueParam) {
+      const matched = coreValues.find((v) => v.name.toLowerCase() === valueParam.toLowerCase());
+      if (matched) {
+        setActiveValue(matched.name);
+      }
+    }
+  }, [valueParam, editingActivity]);
 
   const [date, setDate] = useState(() => {
     if (editingActivity && editingActivity.category === "BerAKHLAK") {
@@ -104,13 +119,31 @@ export default function AddBerakhlakPage() {
   const cameraRef = useRef<any>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
 
+  const getMonthParamFromDate = (dateStr: string) => {
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const year = parts[0];
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${months[monthIdx]} ${year}`;
+      }
+    }
+    const today = new Date();
+    return `${months[today.getMonth()]} ${today.getFullYear()}`;
+  };
+
   const handleCancel = () => {
     setEditingActivity(null);
     setActivityCategoryPreset(null);
     setLoadingMsg("Kembali...");
     setIsLoading(true);
+    const monthParam = getMonthParamFromDate(date);
     setTimeout(() => {
-      router.push("/log");
+      router.push(`/log/history-berakhlak/detail?month=${encodeURIComponent(monthParam)}`);
     }, 350);
   };
 
@@ -216,6 +249,8 @@ export default function AddBerakhlakPage() {
           uploadFormData.append("file", fileObj, fileName);
           uploadFormData.append("rhk", "BerAKHLAK");
           uploadFormData.append("category", "BerAKHLAK");
+          const uploadYear = date ? date.split("-")[0] : new Date().getFullYear().toString();
+          uploadFormData.append("year", uploadYear);
 
           const uploadRes = await fetch("/api/upload", {
             method: "POST",
@@ -296,7 +331,8 @@ export default function AddBerakhlakPage() {
 
       setEditingActivity(null);
       setActivityCategoryPreset(null);
-      router.push("/log");
+      const monthParam = getMonthParamFromDate(date);
+      router.push(`/log/history-berakhlak/detail?month=${encodeURIComponent(monthParam)}`);
     } catch (error) {
       console.error(error);
       alert("Terjadi kesalahan koneksi.");
@@ -622,5 +658,18 @@ export default function AddBerakhlakPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AddBerakhlakPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center p-8 bg-surface-container-lowest border border-outline-variant rounded-2xl animate-pulse-subtle">
+        <span className="material-symbols-outlined text-[48px] text-primary mb-2">find_in_page</span>
+        <p className="text-sm text-outline">Memuat halaman Jurnal BerAKHLAK...</p>
+      </div>
+    }>
+      <AddBerakhlakForm />
+    </Suspense>
   );
 }

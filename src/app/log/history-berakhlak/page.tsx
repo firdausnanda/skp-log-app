@@ -349,16 +349,7 @@ export default function RiwayatJurnalPage() {
         ))}
       </div>
 
-      {/* Contextual FAB */}
-      <div className="fixed bottom-24 right-4 z-40">
-        <button
-          onClick={handleAddNewJournal}
-          className="bg-primary hover:bg-primary-container text-on-primary rounded-xl px-5 py-3 shadow-lg flex items-center justify-center gap-1.5 active:scale-95 transition-transform cursor-pointer border-none"
-        >
-          <span className="material-symbols-outlined text-lg">add</span>
-          <span className="font-label-md text-xs font-bold">Tambah Jurnal</span>
-        </button>
-      </div>
+
     </div>
   );
 }

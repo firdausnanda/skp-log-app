@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const rhk = formData.get("rhk") as string | null;
+    const year = formData.get("year") as string | null;
     
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -42,7 +43,11 @@ export async function POST(request: Request) {
       
       currentParentId = await getOrCreateFolder(drive, userFolderName, currentParentId);
 
-      // 3.2. Get or Create RHK Folder
+      // 3.2. Get or Create Year Folder
+      const uploadYear = (year || new Date().getFullYear().toString()).trim();
+      currentParentId = await getOrCreateFolder(drive, uploadYear, currentParentId);
+
+      // 3.3. Get or Create RHK Folder
       const rawRhkName = rhk || "Lain-lain";
       // Normalize whitespace and newlines, then truncate if too long
       let rhkFolderName = rawRhkName.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
         },
       });
 
-      console.log(`Successfully uploaded file "${filename}" to Google Drive folder "${rhkFolderName}" for user "${userFolderName}". ID: ${fileId}`);
+      console.log(`Successfully uploaded file "${filename}" to Google Drive folder "${userFolderName}/${uploadYear}/${rhkFolderName}". ID: ${fileId}`);
       return NextResponse.json({
         success: true,
         url: webViewLink,

@@ -296,6 +296,8 @@ export default function AddActivityPage() {
           uploadFormData.append("file", fileObj, fileName);
           uploadFormData.append("rhk", rhk);
           uploadFormData.append("category", "Tugas Rutin");
+          const uploadYear = period || (date ? date.split("-")[0] : new Date().getFullYear().toString());
+          uploadFormData.append("year", uploadYear);
 
           const uploadRes = await fetch("/api/upload", {
             method: "POST",

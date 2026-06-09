@@ -1,18 +1,47 @@
 import React from "react";
 import Image from "next/image";
 import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 
 interface TopAppBarProps {
   onLogout: () => void;
 }
 
+interface UserWithCustomFields {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  image?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  username?: string | null;
+  displayUsername?: string | null;
+  nip?: string;
+  pangkatGolongan?: string;
+  jabatan?: string;
+  unitKerja?: string;
+  tandaTangan?: string;
+}
+
 export default function TopAppBar({ onLogout }: TopAppBarProps) {
+  const router = useRouter();
+  const { setIsLoading, setLoadingMsg } = useApp();
   const { data: session } = authClient.useSession();
-  const user = session?.user as any;
+  const user = session?.user as UserWithCustomFields | undefined;
 
   const displayName = user?.name || "Budi Santoso";
   const displayNip = user?.nip ? `NIP ${user.nip}` : "NIP 19800101";
-  const avatarUrl = user?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuAhkUs7gmJxocZiGntAWMFFjcgXNCVe1ue5mQ-U8O7-ko4_X_MWe7GRCncFqTXzaO-wSi0DIWlWN9B60pfxNxwoqw9hKNx2OGRKIuBXfR9AVoZNyQb01TibV6fFtstYeCToWBSfN2GRlb9bzLxJovZy8at70eVj8enracF7FSfU3dte-wOBDzq_T8ms3fGXmqB-odVa32igzfBSIrJVkY57ZD5Ixx2adgoYQ4p___nPcKtQRH0j_E8pBB6UGBA6aX-goGwWlSn6Xl0y";
+  const avatarUrl = user?.image || "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+
+  const handleProfileClick = () => {
+    setLoadingMsg("Memuat pengaturan akun...");
+    setIsLoading(true);
+    setTimeout(() => {
+      router.push("/account");
+    }, 350);
+  };
 
   return (
     <header className="bg-surface/85 backdrop-blur-md fixed top-0 left-0 right-0 w-full z-30 border-b border-outline-variant/75 shadow-sm transition-all duration-200">
@@ -30,7 +59,10 @@ export default function TopAppBar({ onLogout }: TopAppBarProps) {
         {/* Right Side: Pill Profile Widget & Power Logout */}
         <div className="flex items-center gap-3">
           {/* Pill profile details widget */}
-          <div className="flex items-center gap-2.5 bg-surface-container-low/70 border border-outline-variant/60 rounded-full pl-1.5 pr-3.5 py-1.5 hover:bg-surface-container-high/60 transition-all select-none shadow-sm">
+          <button
+            onClick={handleProfileClick}
+            className="flex items-center gap-2.5 bg-surface-container-low/70 border border-outline-variant/60 rounded-full pl-1.5 pr-3.5 py-1.5 hover:bg-surface-container-high/60 hover:border-outline-variant transition-all select-none shadow-sm cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
             <Image
               alt="User profile photo"
               className="w-7 h-7 rounded-full object-cover border border-outline-variant/80"
@@ -47,7 +79,7 @@ export default function TopAppBar({ onLogout }: TopAppBarProps) {
                 {displayNip}
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Logout Action: Circle Power Button */}
           <button

@@ -7,7 +7,7 @@ import DatePicker from "@/components/DatePicker";
 import dynamic from "next/dynamic";
 
 const Camera = dynamic(
-  () => import("react-camera-pro").then((mod) => mod.Camera),
+  () => import("react-webcam-pro").then((mod) => mod.Camera),
   { ssr: false }
 );
 

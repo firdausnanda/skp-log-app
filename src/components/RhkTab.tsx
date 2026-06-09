@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Select, { StylesConfig } from "react-select";
-import { useApp, RhkItem } from "@/context/AppContext";
+import { useApp, RhkItem, Activity } from "@/context/AppContext";
+import { authClient } from "@/lib/auth-client";
 
 const periodOptions = [
   { value: "2026", label: "Tahunan 2026" },
@@ -71,13 +72,46 @@ const customSelectStyles: StylesConfig<OptionType, false> = {
   }),
 };
 
+const getAbsoluteUrl = (url: string) => {
+  if (!url) return "";
+  const matchD = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const matchId = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+  const fileId = (matchD && matchD[1]) || (matchId && matchId[1]);
+  if (fileId) {
+    url = `/api/drive-file?id=${fileId}`;
+  }
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+  }
+  return url;
+};
+
+const isPdfFile = (fileName?: string, url?: string) => {
+  const nameToCheck = (fileName || url || "").toLowerCase();
+  return nameToCheck.split("?")[0].endsWith(".pdf");
+};
+
+interface User {
+  name: string;
+  nip?: string | null;
+  pangkatGolongan?: string | null;
+  jabatan?: string | null;
+  unitKerja?: string | null;
+  tandaTangan?: string | null;
+}
+
 interface RhkTabProps {
   onNotification?: (msg: string) => void;
 }
 
 export default function RhkTab({ onNotification }: RhkTabProps) {
   const router = useRouter();
-  const { rhks, setRhks, setIsLoading, setLoadingMsg, confirmAction, setEditingRhk } = useApp();
+  const { rhks, setRhks, setIsLoading, setLoadingMsg, confirmAction, setEditingRhk, activities } = useApp();
+  const { data: session } = authClient.useSession();
+  const user = session?.user as User | null;
 
   const [search, setSearch] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().getFullYear().toString());
@@ -168,6 +202,124 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
         }
       },
     });
+  };
+
+  const handleDownloadRhkPdf = async (item: RhkItem) => {
+    const rhkActivities = activities.filter(
+      (act) =>
+        act.category === "Tugas Rutin" &&
+        act.rhk === item.title &&
+        act.date.startsWith(selectedPeriod)
+    );
+
+    if (rhkActivities.length === 0) {
+      if (onNotification) {
+        onNotification("Tidak ada kegiatan untuk RHK ini pada periode yang dipilih.");
+      } else {
+        alert("Tidak ada kegiatan untuk RHK ini pada periode yang dipilih.");
+      }
+      return;
+    }
+
+    setLoadingMsg("Menyusun file PDF & Bukti Dukung...");
+    setIsLoading(true);
+
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+      const { default: ReportPdfDocument } = await import("./ReportPdfDocument");
+      const { PDFDocument } = await import("pdf-lib");
+
+      const doc = <ReportPdfDocument activities={rhkActivities} user={user || null} />;
+      const basePdfBlob = await pdf(doc).toBlob();
+      const basePdfBytes = await basePdfBlob.arrayBuffer();
+
+      const mergedPdf = await PDFDocument.load(basePdfBytes);
+      
+      const groups: { rhkTitle: string; activities: Activity[] }[] = [];
+      rhkActivities.forEach((act) => {
+        const rhkName = act.rhk || "Rencana Hasil Kerja Terkait Kinerja Organisasi";
+        let group = groups.find((g) => g.rhkTitle === rhkName);
+        if (!group) {
+          group = { rhkTitle: rhkName, activities: [] };
+          groups.push(group);
+        }
+        group.activities.push(act);
+      });
+
+      groups.forEach((group) => {
+        group.activities.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      });
+
+      let currentInsertIndex = 0; 
+
+      for (let g = 0; g < groups.length; g++) {
+        const group = groups[g];
+        currentInsertIndex += 1;
+
+        for (let a = 0; a < group.activities.length; a++) {
+          const act = group.activities[a];
+          const pdfUrls: string[] = [];
+
+          if (act.attachments && act.attachments.length > 0) {
+            act.attachments.forEach((att) => {
+              if (isPdfFile(att.name, att.url)) {
+                pdfUrls.push(att.url);
+              }
+            });
+          } else if (act.attachmentUrl && isPdfFile(act.attachmentName, act.attachmentUrl)) {
+            pdfUrls.push(act.attachmentUrl);
+          }
+
+          for (const pdfUrl of pdfUrls) {
+            try {
+              const absoluteUrl = getAbsoluteUrl(pdfUrl);
+              const res = await fetch(absoluteUrl);
+              if (!res.ok) throw new Error(`Fetch failed with status ${res.status}`);
+              
+              const attachmentPdfBytes = await res.arrayBuffer();
+              const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
+              
+              const copiedPages = await mergedPdf.copyPages(
+                attachmentPdf,
+                attachmentPdf.getPageIndices()
+              );
+
+              copiedPages.forEach((page) => {
+                mergedPdf.insertPage(currentInsertIndex + 1, page);
+                currentInsertIndex++;
+              });
+            } catch (err) {
+              console.error(`Failed to merge PDF attachment from ${pdfUrl}:`, err);
+            }
+          }
+
+          currentInsertIndex += 1;
+        }
+      }
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const mergedPdfBlob = new Blob([mergedPdfBytes as BlobPart], { type: "application/pdf" });
+
+      const url = URL.createObjectURL(mergedPdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Laporan_RHK_${item.title.substring(0, 30).replace(/\\s+/g, "_")}_${selectedPeriod}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      if (onNotification) {
+        onNotification(`Berhasil mengunduh PDF Laporan RHK.`);
+      }
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      if (onNotification) {
+        onNotification("Gagal menyusun PDF Laporan RHK.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Filter RHKs
@@ -315,9 +467,7 @@ export default function RhkTab({ onNotification }: RhkTabProps) {
                   Lihat Logbook
                 </button>
                 <button
-                  onClick={() => {
-                    if (onNotification) onNotification(`Mengunduh dokumen RHK...`);
-                  }}
+                  onClick={() => handleDownloadRhkPdf(item)}
                   className="flex-1 py-2 border border-outline text-on-surface-variant font-label-md text-xs font-bold rounded-lg hover:bg-surface-variant transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent"
                 >
                   <span className="material-symbols-outlined text-[16px]">download</span>

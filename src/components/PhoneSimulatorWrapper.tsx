@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
@@ -74,10 +74,45 @@ export default function PhoneSimulatorWrapper({ children }: { children: React.Re
   const router = useRouter();
   const isLoginPage = pathname === "/login";
 
+  const [mounted, setMounted] = useState(false);
+  const { data: session, isPending } = authClient.useSession();
+
+  // Set mounted state
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Dismiss loader on pathname changes
   useEffect(() => {
     setIsLoading(false);
   }, [pathname, setIsLoading]);
+
+  // Register Service Worker in production
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      if (process.env.NODE_ENV === "production") {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => {
+            console.log("Service Worker registered with scope:", reg.scope);
+          })
+          .catch((err) => {
+            console.error("Service Worker registration failed:", err);
+          });
+      }
+    }
+  }, []);
+
+  // Authentication Guard redirects
+  useEffect(() => {
+    if (!mounted || isPending) return;
+
+    if (!session && !isLoginPage) {
+      router.replace("/login");
+    } else if (session && isLoginPage) {
+      router.replace("/");
+    }
+  }, [session, isPending, isLoginPage, router, mounted]);
 
   const handleLogout = async () => {
     setLoadingMsg("Keluar dari akun...");
@@ -93,6 +128,23 @@ export default function PhoneSimulatorWrapper({ children }: { children: React.Re
       setIsLoading(false);
     }
   };
+
+  // Guard renders to prevent unauthorized views/flickers
+  if (!mounted) {
+    return <GlobalLoader loadingMsg="Memuat..." />;
+  }
+
+  if (isPending) {
+    return <GlobalLoader loadingMsg="Memverifikasi sesi..." />;
+  }
+
+  if (!session && !isLoginPage) {
+    return <GlobalLoader loadingMsg="Mengarahkan ke halaman login..." />;
+  }
+
+  if (session && isLoginPage) {
+    return <GlobalLoader loadingMsg="Mengarahkan ke dashboard..." />;
+  }
 
   if (isLoginPage) {
     return (

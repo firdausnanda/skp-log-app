@@ -11,11 +11,13 @@ const connectionString = process.env.DATABASE_URL || "mysql://root:@localhost:33
 // Create a connection pool to MySQL
 const globalForDb = globalThis as unknown as {
   connection: mysql.Pool | undefined;
-  db: ReturnType<typeof drizzle> | undefined;
+  db: any;
 };
 
 export const connection = globalForDb.connection ?? mysql.createPool(connectionString);
-export const db = globalForDb.db ?? drizzle(connection, { schema, mode: "default" });
+
+const localDb = drizzle(connection, { schema, mode: "default" });
+export const db = (globalForDb.db ?? localDb) as typeof localDb;
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.connection = connection;

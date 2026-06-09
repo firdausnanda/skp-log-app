@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, timestamp, mysqlEnum, json, boolean, index, foreignKey } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, mysqlEnum, json, boolean, index, foreignKey, int } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 // ==========================================
@@ -122,6 +122,8 @@ export const skpLog = mysqlTable("skp_log", {
   rencanaKinerjaId: varchar("rencana_kinerja_id", { length: 36 })
     .notNull()
     .references(() => rencanaKinerja.id, { onDelete: "cascade" }),
+  outputCount: int("output_count").default(1).notNull(),
+  outputType: varchar("output_type", { length: 255 }).default("Dokumen").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

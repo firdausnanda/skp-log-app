@@ -22,6 +22,13 @@
       "when": 1780922045062,
       "tag": "0002_certain_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780966465703,
+      "tag": "0003_rainy_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,11 @@ const customSelectStyles = {
     border: "1px solid var(--color-outline-variant)",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
     width: "110px",
+    zIndex: 9999,
+  }),
+  menuPortal: (provided: any) => ({
+    ...provided,
+    zIndex: 9999,
   }),
   option: (provided: any, state: any) => ({
     ...provided,
@@ -95,6 +100,16 @@ export default function RiwayatJurnalPage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const handleYearChange = (val: any) => {
+    const newYear = val ? val.value : "2026";
+    setLoadingMsg("Memfilter tahun...");
+    setIsLoading(true);
+    setTimeout(() => {
+      setSelectedYear(newYear);
+      setIsLoading(false);
+    }, 400);
+  };
 
   // Heuristic parser to detect which Core Value the activity represents
   const getCoreValueFromTitle = (title: string): string | null => {
@@ -156,11 +171,8 @@ export default function RiwayatJurnalPage() {
         if (val) uniqueValues.add(val);
       });
 
-      // Use actual points, or fallback to mock data if there are no logs for that month
-      let points = uniqueValues.size;
-      if (monthActivities.length === 0) {
-        points = month.defaultPoints;
-      }
+      // Use actual points from database
+      const points = uniqueValues.size;
 
       const isComplete = points === 7;
       const status = isComplete ? "Selesai" : "Perlu Dilengkapi";
@@ -274,15 +286,19 @@ export default function RiwayatJurnalPage() {
           <span className="font-label-sm text-xs font-semibold">Tahun</span>
         </div>
         
-        <Select
-          instanceId="year-filter-select"
-          value={yearOptions.find((opt) => opt.value === selectedYear) || yearOptions[0]}
-          onChange={(val) => setSelectedYear(val ? val.value : "2026")}
-          options={yearOptions}
-          styles={customSelectStyles}
-          isSearchable={false}
-          menuPortalTarget={isMounted ? document.body : null}
-        />
+        {isMounted ? (
+          <Select
+            instanceId="year-filter-select"
+            value={yearOptions.find((opt) => opt.value === selectedYear) || yearOptions[0]}
+            onChange={handleYearChange}
+            options={yearOptions}
+            styles={customSelectStyles}
+            isSearchable={false}
+            menuPortalTarget={document.body}
+          />
+        ) : (
+          <div className="h-8 w-[110px] rounded-full border border-outline-variant bg-surface-container-lowest animate-pulse" />
+        )}
       </div>
 
       {/* Journal List */}

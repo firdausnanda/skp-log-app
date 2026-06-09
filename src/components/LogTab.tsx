@@ -321,8 +321,21 @@ export default function LogTab() {
       isDanger: true,
       onConfirm: async () => {
         await showLoading("Menghapus kegiatan...", 800);
-        setActivities((prev) => prev.filter((act) => act.id !== id));
-        triggerNotification("Kegiatan berhasil dihapus.");
+        try {
+          const res = await fetch(`/api/activity?id=${id}`, {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            setActivities((prev) => prev.filter((act) => act.id !== id));
+            triggerNotification("Kegiatan berhasil dihapus.");
+          } else {
+            const err = await res.json();
+            alert(`Gagal menghapus kegiatan: ${err.error}`);
+          }
+        } catch (error) {
+          console.error(error);
+          alert("Gagal menghapus kegiatan karena gangguan koneksi.");
+        }
       },
     });
   };
@@ -350,13 +363,23 @@ export default function LogTab() {
   };
 
   const formatActivityDate = (dateStr: string) => {
-    if (dateStr === todayStr) return "Hari Ini";
-    if (dateStr === yesterdayStr) return "Kemarin";
-    
-    // Format: YYYY-MM-DD -> DD MMM YYYY
+    // Format: YYYY-MM-DD -> DD MMMM YYYY (e.g., 9 Juni 2026)
     const parts = dateStr.split("-");
     if (parts.length === 3) {
-      const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+      const months = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember"
+      ];
       const day = parseInt(parts[2]);
       const monthIndex = parseInt(parts[1]) - 1;
       const year = parts[0];
@@ -391,6 +414,8 @@ export default function LogTab() {
 
   // Filter activities
   const filteredActivities = activities.filter((act) => {
+    if (act.category === "BerAKHLAK") return false;
+
     const matchesSearch =
       act.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       act.rhk.toLowerCase().includes(debouncedSearch.toLowerCase());
@@ -702,7 +727,7 @@ export default function LogTab() {
               <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-xs pl-1">
                 <span className="material-symbols-outlined text-[16px] text-outline">calendar_today</span>
                 <span>
-                  Tanggal Input: {formatActivityDate(act.date)}
+                  Tanggal: {formatActivityDate(act.date)}
                 </span>
               </div>
 
@@ -725,13 +750,34 @@ export default function LogTab() {
                   </span>
                 </div>
                 {act.hasAttachment && (
-                  <button
-                    onClick={() => triggerNotification(`Membuka berkas: ${act.attachmentName}`)}
-                    className="text-primary flex items-center gap-1 font-label-sm text-xs hover:underline cursor-pointer border-none bg-transparent"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">link</span>
-                    <span>Bukti Dukung</span>
-                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    {act.attachments && act.attachments.length > 0 ? (
+                      act.attachments.map((att, idx) => (
+                        <a
+                          key={idx}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary flex items-center gap-1 font-label-sm text-xs hover:underline no-underline"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">link</span>
+                          <span className="truncate max-w-[150px]" title={att.name}>
+                            {att.name || `Bukti ${idx + 1}`}
+                          </span>
+                        </a>
+                      ))
+                    ) : (
+                      <a
+                        href={act.attachmentUrl || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary flex items-center gap-1 font-label-sm text-xs hover:underline no-underline"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">link</span>
+                        <span>Bukti Dukung</span>
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

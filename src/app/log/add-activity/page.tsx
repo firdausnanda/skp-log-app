@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Select, { StylesConfig } from "react-select";
 import { useApp, Activity } from "@/context/AppContext";
 import DatePicker from "@/components/DatePicker";
+import dynamic from "next/dynamic";
+
+const Camera = dynamic(
+  () => import("react-camera-pro").then((mod) => mod.Camera),
+  { ssr: false }
+);
 
 
 
@@ -64,6 +70,12 @@ const customSelectStyles: StylesConfig<OptionType, false> = {
   }),
 };
 
+const periodOptions = [
+  { value: "2026", label: "Tahunan 2026" },
+  { value: "2025", label: "Tahunan 2025" },
+  { value: "2024", label: "Tahunan 2024" },
+];
+
 export default function AddActivityPage() {
   const router = useRouter();
   const {
@@ -78,15 +90,39 @@ export default function AddActivityPage() {
     setLoadingMsg,
   } = useApp();
 
-  // Map RHK options from context dynamically
-  const rhkOptions = rhks.map((r) => ({ value: r.title, label: r.title }));
+  const [isRhkLoading, setIsRhkLoading] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const cameraRef = useRef<any>(null);
+  const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
+
+  const [period, setPeriod] = useState(() => {
+    if (editingActivity && editingActivity.category === "Tugas Rutin") {
+      const assoc = rhks.find((r) => r.title === editingActivity.rhk);
+      if (assoc) return assoc.period;
+    }
+    return "2026";
+  });
+
+  const filteredRhks = rhks.filter((r) => r.period === period);
+  const rhkOptions = filteredRhks.map((r) => ({ value: r.title, label: r.title }));
 
   const [rhk, setRhk] = useState(() => {
     if (editingActivity && editingActivity.category === "Tugas Rutin") {
       return editingActivity.rhk;
     }
-    return rhks[0]?.title || "";
+    const initialPeriod = "2026";
+    const initialFiltered = rhks.filter((r) => r.period === initialPeriod);
+    return initialFiltered[0]?.title || "";
   });
+
+  useEffect(() => {
+    if (period) {
+      const exists = filteredRhks.some((r) => r.title === rhk);
+      if (!exists) {
+        setRhk(filteredRhks[0]?.title || "");
+      }
+    }
+  }, [period]);
   
   const [date, setDate] = useState(() => {
     if (editingActivity && editingActivity.category === "Tugas Rutin") {
@@ -121,11 +157,32 @@ export default function AddActivityPage() {
   });
 
   const [evidenceFiles, setEvidenceFiles] = useState<string[]>(() => {
-    if (editingActivity && editingActivity.category === "Tugas Rutin" && editingActivity.attachmentName) {
-      return [editingActivity.attachmentName];
+    if (editingActivity && editingActivity.category === "Tugas Rutin") {
+      if (editingActivity.attachments && editingActivity.attachments.length > 0) {
+        return editingActivity.attachments.map((a) => a.name);
+      }
+      if (editingActivity.attachmentName) {
+        return [editingActivity.attachmentName];
+      }
     }
     return [];
   });
+
+  const [existingUrls, setExistingUrls] = useState<Record<string, string>>(() => {
+    const urls: Record<string, string> = {};
+    if (editingActivity && editingActivity.category === "Tugas Rutin") {
+      if (editingActivity.attachments && editingActivity.attachments.length > 0) {
+        editingActivity.attachments.forEach((a) => {
+          urls[a.name] = a.url;
+        });
+      } else if (editingActivity.attachmentName && editingActivity.attachmentUrl) {
+        urls[editingActivity.attachmentName] = editingActivity.attachmentUrl;
+      }
+    }
+    return urls;
+  });
+
+  const [fileObjects, setFileObjects] = useState<Record<string, File | Blob>>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -139,23 +196,79 @@ export default function AddActivityPage() {
     }, 350);
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleUploadFile = () => {
-    const randomSuffix = Math.random().toString(36).substring(5);
-    const mockFileName = `dokumen_kegiatan_${randomSuffix}.pdf`;
-    setEvidenceFiles((prev) => [...prev, mockFileName]);
-    triggerNotification("File berhasil diunggah.");
+    fileInputRef.current?.click();
   };
 
   const handleCameraCapture = () => {
-    const randomSuffix = Math.random().toString(36).substring(5);
-    const mockFileName = `foto_kegiatan_${randomSuffix}.jpg`;
-    setEvidenceFiles((prev) => [...prev, mockFileName]);
-    triggerNotification("Foto berhasil ditangkap.");
+    setShowCameraModal(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "upload" | "camera") => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const fileName = file.name;
+      setEvidenceFiles((prev) => [...prev, fileName]);
+      setFileObjects((prev) => ({ ...prev, [fileName]: file }));
+      triggerNotification(
+        type === "camera"
+          ? `Foto "${fileName}" berhasil diambil.`
+          : `File "${fileName}" berhasil diunggah.`
+      );
+      e.target.value = "";
+    }
   };
 
   const handleRemoveFile = (index: number) => {
+    const fileName = evidenceFiles[index];
     setEvidenceFiles((prev) => prev.filter((_, idx) => idx !== index));
+    if (fileName) {
+      setFileObjects((prev) => {
+        const copy = { ...prev };
+        delete copy[fileName];
+        return copy;
+      });
+      setExistingUrls((prev) => {
+        const copy = { ...prev };
+        delete copy[fileName];
+        return copy;
+      });
+    }
     triggerNotification("Bukti dukung dihapus.");
+  };
+
+  const handleViewFile = (file: string) => {
+    if (fileObjects[file]) {
+      const fileObj = fileObjects[file];
+      const objectUrl = URL.createObjectURL(fileObj);
+      window.open(objectUrl, "_blank");
+    } else if (capturedPhotos[file]) {
+      const photoUrl = capturedPhotos[file];
+      const newTab = window.open();
+      if (newTab) {
+        newTab.document.write(`
+          <html>
+            <head>
+              <title>Preview Foto</title>
+              <style>
+                body { margin: 0; display: flex; justify-content: center; align-items: center; background: #000; height: 100vh; }
+                img { max-width: 100%; max-height: 100%; object-fit: contain; }
+              </style>
+            </head>
+            <body>
+              <img src="${photoUrl}" />
+            </body>
+          </html>
+        `);
+        newTab.document.close();
+      }
+    } else if (existingUrls[file]) {
+      window.open(existingUrls[file], "_blank");
+    } else {
+      alert("Berkas tidak dapat ditampilkan.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,49 +286,103 @@ export default function AddActivityPage() {
     setIsSubmitting(true);
     await showLoading(isEdit ? "Memperbarui kegiatan..." : "Menyimpan kegiatan...", 1000);
 
-    if (editingActivity) {
-      // Edit
-      const updatedActivity: Activity = {
-        ...editingActivity,
-        title: description.trim(),
-        category: "Tugas Rutin",
-        date,
-        rhk,
-        timeStart: "",
-        timeEnd: "",
-        outputCount,
-        outputType,
-        hasAttachment: evidenceFiles.length > 0,
-        attachmentName: evidenceFiles[0] || undefined,
-      };
+    const uploadedAttachments: { name: string; url: string }[] = [];
 
-      setActivities((prev) =>
-        prev.map((act) => (act.id === editingActivity.id ? updatedActivity : act))
-      );
-      triggerNotification("Kegiatan berhasil diperbarui!");
-    } else {
-      // Add
-      const newActivity: Activity = {
-        id: `act-${Date.now()}`,
-        title: description.trim(),
-        category: "Tugas Rutin",
-        date,
-        timeStart: "",
-        timeEnd: "",
-        rhk,
-        outputCount,
-        outputType,
-        hasAttachment: evidenceFiles.length > 0,
-        attachmentName: evidenceFiles[0] || undefined,
-      };
+    for (const fileName of evidenceFiles) {
+      if (fileObjects[fileName]) {
+        try {
+          const uploadFormData = new FormData();
+          const fileObj = fileObjects[fileName];
+          uploadFormData.append("file", fileObj, fileName);
+          uploadFormData.append("rhk", rhk);
+          uploadFormData.append("category", "Tugas Rutin");
 
-      setActivities((prev) => [newActivity, ...prev]);
-      triggerNotification("Kegiatan baru berhasil ditambahkan!");
+          const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            body: uploadFormData,
+          });
+
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json().catch(() => ({}));
+            throw new Error(errData.error || `Gagal mengunggah berkas ${fileName}!`);
+          }
+
+          const uploadData = await uploadRes.json();
+          uploadedAttachments.push({ name: fileName, url: uploadData.url });
+        } catch (uploadErr: any) {
+          console.error("Error uploading file", uploadErr);
+          alert(uploadErr.message || `Gagal mengunggah berkas ${fileName}!`);
+          setIsSubmitting(false);
+          return;
+        }
+      } else if (existingUrls[fileName]) {
+        uploadedAttachments.push({ name: fileName, url: existingUrls[fileName] });
+      }
     }
 
-    setEditingActivity(null);
-    setActivityCategoryPreset(null);
-    router.push("/log");
+    const activityPayload = {
+      id: editingActivity?.id,
+      title: description.trim(),
+      category: "Tugas Rutin",
+      date,
+      rhk,
+      period,
+      outputCount,
+      outputType,
+      attachmentName: uploadedAttachments[0]?.name || null,
+      attachmentUrl: uploadedAttachments[0]?.url || null,
+      attachments: uploadedAttachments,
+    };
+
+    try {
+      if (editingActivity) {
+        // Edit
+        const res = await fetch("/api/activity", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(activityPayload),
+        });
+
+        if (res.ok) {
+          const updatedActivity: Activity = await res.json();
+          setActivities((prev) =>
+            prev.map((act) => (act.id === editingActivity.id ? updatedActivity : act))
+          );
+          triggerNotification("Kegiatan berhasil diperbarui!");
+        } else {
+          const err = await res.json();
+          alert(`Gagal memperbarui kegiatan: ${err.error}`);
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // Add
+        const res = await fetch("/api/activity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(activityPayload),
+        });
+
+        if (res.ok) {
+          const newActivity: Activity = await res.json();
+          setActivities((prev) => [newActivity, ...prev]);
+          triggerNotification("Kegiatan baru berhasil ditambahkan!");
+        } else {
+          const err = await res.json();
+          alert(`Gagal menyimpan kegiatan: ${err.error}`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      setEditingActivity(null);
+      setActivityCategoryPreset(null);
+      router.push("/log");
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan koneksi.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -248,6 +415,30 @@ export default function AddActivityPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Period Card */}
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
+            <label className="block font-label-md text-sm font-semibold text-on-surface-variant mb-2" htmlFor="period">
+              Periode
+            </label>
+            <Select
+              instanceId="input-period-select"
+              value={periodOptions.find((opt) => opt.value === period) || null}
+              onChange={(val) => {
+                const newPeriod = val ? val.value : "2026";
+                setIsRhkLoading(true);
+                setPeriod(newPeriod);
+                setTimeout(() => {
+                  setIsRhkLoading(false);
+                }, 400);
+              }}
+              options={periodOptions}
+              styles={customSelectStyles}
+              placeholder="Pilih Periode..."
+              isSearchable={false}
+              menuPortalTarget={typeof window !== "undefined" ? document.body : null}
+            />
+          </div>
+
           {/* RHK Link Card */}
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm">
             <label className="block font-label-md text-sm font-semibold text-on-surface-variant mb-2" htmlFor="rhk">
@@ -256,11 +447,18 @@ export default function AddActivityPage() {
             <Select
               instanceId="input-rhk-select"
               value={rhkOptions.find((opt) => opt.value === rhk) || null}
-              onChange={(val) => setRhk(val ? val.value : "")}
+              onChange={(val) => {
+                setRhk(val ? val.value : "");
+                setIsRhkLoading(true);
+                setTimeout(() => {
+                  setIsRhkLoading(false);
+                }, 250);
+              }}
               options={rhkOptions}
               styles={customSelectStyles}
               placeholder="Pilih Rencana Hasil Kerja..."
               isSearchable={true}
+              isLoading={isRhkLoading}
               menuPortalTarget={typeof window !== "undefined" ? document.body : null}
             />
           </div>
@@ -319,6 +517,15 @@ export default function AddActivityPage() {
                   <span className="font-label-md text-xs text-on-surface font-semibold">Unggah File</span>
                 </button>
               </div>
+
+              {/* Hidden Inputs for File Upload */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="application/pdf,image/*"
+                onChange={(e) => handleFileChange(e, "upload")}
+              />
               
               {/* Dashed Drag & Drop Trigger */}
               <div
@@ -339,18 +546,37 @@ export default function AddActivityPage() {
                     className="flex items-center justify-between p-2.5 bg-surface-container border border-outline-variant rounded-lg"
                   >
                     <div className="flex items-center gap-2 max-w-[80%]">
-                      <span className="material-symbols-outlined text-primary text-lg">
-                        {file.endsWith(".jpg") ? "image" : "description"}
-                      </span>
+                      {capturedPhotos[file] ? (
+                        <img
+                          src={capturedPhotos[file]}
+                          className="w-8 h-8 object-cover rounded-md border border-outline-variant"
+                          alt="Captured preview"
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined text-primary text-lg">
+                          {file.endsWith(".jpg") || file.endsWith(".png") ? "image" : "description"}
+                        </span>
+                      )}
                       <span className="text-xs text-on-surface truncate font-medium">{file}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(index)}
-                      className="text-error hover:bg-error-container/20 p-1 rounded-full cursor-pointer border-none bg-transparent flex items-center justify-center"
-                    >
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleViewFile(file)}
+                        className="text-primary hover:bg-primary/10 p-1.5 rounded-full cursor-pointer border-none bg-transparent flex items-center justify-center"
+                        title="Lihat Berkas"
+                      >
+                        <span className="material-symbols-outlined text-lg">visibility</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        className="text-error hover:bg-error-container/20 p-1.5 rounded-full cursor-pointer border-none bg-transparent flex items-center justify-center"
+                        title="Hapus Berkas"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {evidenceFiles.length === 0 && (
@@ -381,6 +607,93 @@ export default function AddActivityPage() {
             </button>
           </div>
         </form>
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-black/80 z-[10000] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+          {/* Modal Header */}
+          <div className="w-full max-w-md bg-surface-container-lowest rounded-2xl overflow-hidden shadow-2xl relative flex flex-col h-[500px]">
+            <div className="flex justify-between items-center p-4 border-b border-outline-variant bg-surface">
+              <span className="font-headline-md text-sm text-on-surface font-bold">Ambil Foto Bukti</span>
+              <button
+                type="button"
+                onClick={() => setShowCameraModal(false)}
+                className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Camera Viewport */}
+            <div className="flex-grow bg-black relative flex items-center justify-center overflow-hidden">
+              <Camera
+                ref={cameraRef}
+                aspectRatio="cover"
+                errorMessages={{
+                  noCameraAccessible: "Kamera tidak dapat diakses.",
+                  permissionDenied: "Izin akses kamera ditolak.",
+                  switchCamera: "Gagal memindah kamera.",
+                  canvas: "Browser Anda tidak mendukung pengambilan gambar.",
+                }}
+              />
+            </div>
+
+            {/* Camera Controls */}
+            <div className="p-5 border-t border-outline-variant bg-surface flex justify-center items-center gap-6">
+              {/* Switch Camera Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (cameraRef.current) {
+                    cameraRef.current.switchCamera();
+                  }
+                }}
+                className="p-3 bg-surface-container hover:bg-surface-variant text-on-surface rounded-full transition-all active:scale-95 cursor-pointer border-none flex items-center justify-center"
+                title="Putar Kamera"
+              >
+                <span className="material-symbols-outlined text-xl">flip_camera_ios</span>
+              </button>
+
+              {/* Shutter Capture Button */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (cameraRef.current) {
+                    const photo = cameraRef.current.takePhoto();
+                    if (photo) {
+                      const fileName = `foto_kegiatan_${Date.now()}.jpg`;
+                      setEvidenceFiles((prev) => [...prev, fileName]);
+                      setCapturedPhotos((prev) => ({ ...prev, [fileName]: photo }));
+                      
+                      try {
+                        const blobRes = await fetch(photo);
+                        const blob = await blobRes.blob();
+                        setFileObjects((prev) => ({ ...prev, [fileName]: blob }));
+                      } catch (err) {
+                        console.error("Failed to convert captured photo to blob", err);
+                      }
+
+                      triggerNotification("Foto berhasil ditangkap!");
+                      setShowCameraModal(false);
+                    }
+                  }
+                }}
+                className="w-16 h-16 bg-primary text-on-primary rounded-full hover:scale-105 transition-all active:scale-95 cursor-pointer border-none flex items-center justify-center shadow-lg"
+              >
+                <span className="material-symbols-outlined text-3xl text-white">photo_camera</span>
+              </button>
+
+              {/* Cancel Button */}
+              <button
+                type="button"
+                onClick={() => setShowCameraModal(false)}
+                className="p-3 bg-surface-container hover:bg-surface-variant text-error rounded-full transition-all active:scale-95 cursor-pointer border-none flex items-center justify-center"
+                title="Batal"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

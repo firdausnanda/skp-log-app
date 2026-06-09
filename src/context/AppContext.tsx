@@ -16,6 +16,8 @@ export interface Activity {
   outputType: string;
   hasAttachment: boolean;
   attachmentName?: string;
+  attachmentUrl?: string;
+  attachments?: { name: string; url: string }[];
 }
 
 export interface RhkItem {
@@ -68,58 +70,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [activities, setActivities] = useState<Activity[]>([
-    {
-      id: "act-1",
-      title: "Penyusunan draft laporan kinerja triwulan III Tahun 2023",
-      category: "BerAKHLAK",
-      date: new Date().toISOString().split("T")[0],
-      timeStart: "09:00",
-      timeEnd: "11:30",
-      rhk: "RHK #1: Penyusunan Rencana Strategis Tahunan",
-      outputCount: 1,
-      outputType: "Dokumen",
-      hasAttachment: true,
-      attachmentName: "draft_laporan_q3.pdf",
-    },
-    {
-      id: "act-2",
-      title: "Rapat koordinasi teknis pelaksanaan program kerja 2024",
-      category: "Tugas Rutin",
-      date: new Date().toISOString().split("T")[0],
-      timeStart: "13:00",
-      timeEnd: "15:00",
-      rhk: "RHK #2: Koordinasi Lintas Sektoral Kinerja Daerah",
-      outputCount: 1,
-      outputType: "Notulensi",
-      hasAttachment: false,
-    },
-    {
-      id: "act-3",
-      title: "Melakukan integrasi sistem pelaporan kinerja pegawai digital assistant versi mobile",
-      category: "BerAKHLAK",
-      date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-      timeStart: "08:30",
-      timeEnd: "10:30",
-      rhk: "RHK #3: Pengelolaan Pengarsipan Berkas Digital",
-      outputCount: 1,
-      outputType: "Laporan Integrasi",
-      hasAttachment: true,
-      attachmentName: "integration_log.txt",
-    },
-    {
-      id: "act-4",
-      title: "Rapat koordinasi perbaikan layout dashboard mempermudah navigasi user",
-      category: "Tugas Rutin",
-      date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-      timeStart: "14:15",
-      timeEnd: "16:00",
-      rhk: "RHK #4: Evaluasi Mingguan Kepatuhan Administrasi",
-      outputCount: 1,
-      outputType: "Dokumen Desain",
-      hasAttachment: false,
-    },
-  ]);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const [rhks, setRhks] = useState<RhkItem[]>([
     {
@@ -164,7 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
   ]);
 
-  const [activitiesCount, setActivitiesCount] = useState(4);
+  const [activitiesCount, setActivitiesCount] = useState(0);
   const [rhkCount, setRhkCount] = useState(4);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activityCategoryPreset, setActivityCategoryPreset] = useState<"BerAKHLAK" | "Tugas Rutin" | null>(null);
@@ -220,6 +171,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = authClient.useSession();
 
   useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const res = await fetch("/api/activity");
+        if (res.ok) {
+          const data = await res.json();
+          setActivities(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch activities:", error);
+      }
+    };
+
     const fetchRhks = async () => {
       try {
         const res = await fetch("/api/rhk");
@@ -233,14 +196,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (session) {
+      fetchActivities();
       fetchRhks();
     } else {
+      setActivities([]);
       setRhks([]);
     }
   }, [session]);
 
   useEffect(() => {
-    setActivitiesCount(activities.length);
+    const activeLogs = activities.filter((act) => act.category !== "BerAKHLAK");
+    setActivitiesCount(activeLogs.length);
   }, [activities]);
 
   useEffect(() => {

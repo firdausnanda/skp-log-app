@@ -58,13 +58,6 @@ function DetailJurnalContent() {
     return title;
   };
 
-  const getDefaultPointsForMonth = (mName: string): number => {
-    const baselines: { [key: string]: number } = {
-      "Juni": 2, "Mei": 7, "April": 7, "Maret": 4, "Februari": 7, "Januari": 7
-    };
-    return baselines[mName] !== undefined ? baselines[mName] : 7;
-  };
-
   // Find actual context activities in this month & year
   const actualMonthActivities = activities.filter(act => {
     if (act.category !== "BerAKHLAK") return false;
@@ -72,28 +65,8 @@ function DetailJurnalContent() {
     return actDate.getFullYear() === year && actDate.getMonth() === monthIndex;
   });
 
-  // Calculate dynamic list of entries
-  let currentMonthActivities = [...actualMonthActivities];
-  if (actualMonthActivities.length === 0) {
-    // Generate mock baseline entries for past months so the screen looks realistic
-    const defaultPoints = getDefaultPointsForMonth(monthName);
-    for (let i = 0; i < defaultPoints; i++) {
-      const value = coreValuesList[i];
-      currentMonthActivities.push({
-        id: `mock-act-${monthName}-${i}`,
-        title: `[${value.name}] Telah ${value.descriptionPlaceholder.toLowerCase()}`,
-        category: "BerAKHLAK",
-        date: `${year}-${String(monthIndex + 1).padStart(2, "0")}-15`,
-        timeStart: "",
-        timeEnd: "",
-        rhk: "RHK #1: Penyusunan rencana hasil kerja tahunan strategis organisasi",
-        outputCount: 1,
-        outputType: "Dokumen",
-        hasAttachment: i % 2 === 0,
-        attachmentName: i % 2 === 0 ? `bukti_jurnal_${value.name.toLowerCase().replace(" ", "_")}.pdf` : undefined
-      });
-    }
-  }
+  // Use actual activities from database
+  const currentMonthActivities = [...actualMonthActivities];
 
   // Map each value to its corresponding activity if it exists
   const valueEntries = coreValuesList.map(v => {
@@ -221,14 +194,30 @@ function DetailJurnalContent() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {hasEntry ? (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => triggerNotification(`Mengunduh bukti dukung: ${act?.attachmentName}`)}
-                          className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors border-none bg-transparent flex items-center justify-center cursor-pointer"
-                          aria-label="Download"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">download</span>
-                        </button>
+                        {act?.attachments && act.attachments.length > 0 ? (
+                          act.attachments.map((att, idx) => (
+                            <a
+                              key={idx}
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors flex items-center justify-center cursor-pointer"
+                              title={`Buka bukti dukung: ${att.name}`}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                            </a>
+                          ))
+                        ) : act?.attachmentUrl ? (
+                          <a
+                            href={act.attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-surface-container text-primary transition-colors flex items-center justify-center cursor-pointer"
+                            title={`Buka bukti dukung: ${act.attachmentName}`}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                          </a>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setExpandedVal(isExpanded ? null : item.value)}
@@ -283,21 +272,52 @@ function DetailJurnalContent() {
                       </p>
                     </div>
 
-                    {act.attachmentName && (
+                    {act.attachments && act.attachments.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[10px] text-outline font-bold uppercase tracking-wider">
+                          Bukti Dukung ({act.attachments.length})
+                        </span>
+                        <div className="space-y-1.5">
+                          {act.attachments.map((att, idx) => (
+                            <a
+                              key={idx}
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 bg-surface-bright border border-outline-variant/30 rounded-lg max-w-full hover:bg-surface-container transition-colors cursor-pointer text-inherit no-underline"
+                            >
+                              <span className="material-symbols-outlined text-primary text-base">
+                                {att.name.endsWith(".jpg") || att.name.endsWith(".png") ? "image" : "description"}
+                              </span>
+                              <span className="text-[11px] text-on-surface font-medium truncate flex-grow">
+                                {att.name}
+                              </span>
+                              <span className="material-symbols-outlined text-outline text-sm">open_in_new</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : act.attachmentName ? (
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-outline font-bold uppercase tracking-wider">
                           Bukti Dukung
                         </span>
-                        <div className="flex items-center gap-2 p-2 bg-surface-bright border border-outline-variant/30 rounded-lg max-w-full">
+                        <a
+                          href={act.attachmentUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 bg-surface-bright border border-outline-variant/30 rounded-lg max-w-full hover:bg-surface-container transition-colors cursor-pointer text-inherit no-underline"
+                        >
                           <span className="material-symbols-outlined text-primary text-base">
-                            {act.attachmentName.endsWith(".jpg") ? "image" : "description"}
+                            {act.attachmentName.endsWith(".jpg") || act.attachmentName.endsWith(".png") ? "image" : "description"}
                           </span>
                           <span className="text-[11px] text-on-surface font-medium truncate flex-grow">
                             {act.attachmentName}
                           </span>
-                        </div>
+                          <span className="material-symbols-outlined text-outline text-sm">open_in_new</span>
+                        </a>
                       </div>
-                    )}
+                    ) : null}
 
                     <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20 mt-1">
                       {/* Check if it is a mock entry (id starts with mock-act) to warn/prevent edits */}

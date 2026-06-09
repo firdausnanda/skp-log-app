@@ -297,7 +297,16 @@ export default function AddActivityPage() {
           uploadFormData.append("rhk", rhk);
           uploadFormData.append("category", "Tugas Rutin");
           const uploadYear = period || (date ? date.split("-")[0] : new Date().getFullYear().toString());
+          const months = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+          ];
+          const dateParts = date ? date.split("-") : [];
+          const monthIndex = dateParts[1] ? parseInt(dateParts[1], 10) - 1 : new Date().getMonth();
+          const uploadMonth = months[monthIndex] || months[new Date().getMonth()];
+
           uploadFormData.append("year", uploadYear);
+          uploadFormData.append("month", uploadMonth);
 
           const uploadRes = await fetch("/api/upload", {
             method: "POST",

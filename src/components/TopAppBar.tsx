@@ -31,9 +31,14 @@ export default function TopAppBar({ onLogout }: TopAppBarProps) {
   const { data: session } = authClient.useSession();
   const user = session?.user as UserWithCustomFields | undefined;
 
-  const displayName = user?.name || "Budi Santoso";
-  const displayNip = user?.nip ? `NIP ${user.nip}` : "NIP 19800101";
-  const avatarUrl = user?.image || "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const displayName = mounted && user?.name ? user.name : "Budi Santoso";
+  const displayNip = mounted && user?.nip ? `NIP ${user.nip}` : "NIP 19800101";
+  const avatarUrl = mounted && user?.image ? user.image : "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
 
   const handleProfileClick = () => {
     setLoadingMsg("Memuat pengaturan akun...");

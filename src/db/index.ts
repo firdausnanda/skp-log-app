@@ -9,5 +9,16 @@ config({ path: ".env.local" });
 const connectionString = process.env.DATABASE_URL || "mysql://root:@localhost:3306/db_skp_log";
 
 // Create a connection pool to MySQL
-export const connection = mysql.createPool(connectionString);
-export const db = drizzle(connection, { schema, mode: "default" });
+const globalForDb = globalThis as unknown as {
+  connection: mysql.Pool | undefined;
+  db: ReturnType<typeof drizzle> | undefined;
+};
+
+export const connection = globalForDb.connection ?? mysql.createPool(connectionString);
+export const db = globalForDb.db ?? drizzle(connection, { schema, mode: "default" });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.connection = connection;
+  globalForDb.db = db;
+}
+

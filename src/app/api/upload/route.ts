@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File | null;
     const rhk = formData.get("rhk") as string | null;
     const year = formData.get("year") as string | null;
+    const month = formData.get("month") as string | null;
     
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -47,7 +48,15 @@ export async function POST(request: Request) {
       const uploadYear = (year || new Date().getFullYear().toString()).trim();
       currentParentId = await getOrCreateFolder(drive, uploadYear, currentParentId);
 
-      // 3.3. Get or Create RHK Folder
+      // 3.3. Get or Create Month Folder
+      const months = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      ];
+      const uploadMonth = (month || months[new Date().getMonth()]).trim();
+      currentParentId = await getOrCreateFolder(drive, uploadMonth, currentParentId);
+
+      // 3.4. Get or Create RHK Folder
       const rawRhkName = rhk || "Lain-lain";
       // Normalize whitespace and newlines, then truncate if too long
       let rhkFolderName = rawRhkName.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
@@ -93,7 +102,7 @@ export async function POST(request: Request) {
         },
       });
 
-      console.log(`Successfully uploaded file "${filename}" to Google Drive folder "${userFolderName}/${uploadYear}/${rhkFolderName}". ID: ${fileId}`);
+      console.log(`Successfully uploaded file "${filename}" to Google Drive folder "${userFolderName}/${uploadYear}/${uploadMonth}/${rhkFolderName}". ID: ${fileId}`);
       return NextResponse.json({
         success: true,
         url: webViewLink,

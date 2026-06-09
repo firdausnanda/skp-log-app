@@ -24,6 +24,9 @@ export const user = mysqlTable("user", {
   nip: text("nip"),
   jabatan: text("jabatan"),
   seksi: text("seksi"),
+  pangkatGolongan: text("pangkat_golongan"),
+  unitKerja: text("unit_kerja"),
+  tandaTangan: text("tanda_tangan"),
 });
 
 export const session = mysqlTable(

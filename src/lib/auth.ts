@@ -23,6 +23,9 @@ export const auth = betterAuth({
       nip: { type: "string" },
       jabatan: { type: "string" },
       seksi: { type: "string" },
+      pangkatGolongan: { type: "string" },
+      unitKerja: { type: "string" },
+      tandaTangan: { type: "string" },
     },
   },
   emailAndPassword: {

@@ -1,11 +1,19 @@
 import React from "react";
 import Image from "next/image";
+import { authClient } from "@/lib/auth-client";
 
 interface TopAppBarProps {
   onLogout: () => void;
 }
 
 export default function TopAppBar({ onLogout }: TopAppBarProps) {
+  const { data: session } = authClient.useSession();
+  const user = session?.user as any;
+
+  const displayName = user?.name || "Budi Santoso";
+  const displayNip = user?.nip ? `NIP ${user.nip}` : "NIP 19800101";
+  const avatarUrl = user?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuAhkUs7gmJxocZiGntAWMFFjcgXNCVe1ue5mQ-U8O7-ko4_X_MWe7GRCncFqTXzaO-wSi0DIWlWN9B60pfxNxwoqw9hKNx2OGRKIuBXfR9AVoZNyQb01TibV6fFtstYeCToWBSfN2GRlb9bzLxJovZy8at70eVj8enracF7FSfU3dte-wOBDzq_T8ms3fGXmqB-odVa32igzfBSIrJVkY57ZD5Ixx2adgoYQ4p___nPcKtQRH0j_E8pBB6UGBA6aX-goGwWlSn6Xl0y";
+
   return (
     <header className="bg-surface/85 backdrop-blur-md fixed top-0 left-0 right-0 w-full z-30 border-b border-outline-variant/75 shadow-sm transition-all duration-200">
       <div className="flex justify-between items-center px-4 h-16 w-full max-w-container-max mx-auto">
@@ -26,16 +34,17 @@ export default function TopAppBar({ onLogout }: TopAppBarProps) {
             <Image
               alt="User profile photo"
               className="w-7 h-7 rounded-full object-cover border border-outline-variant/80"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhkUs7gmJxocZiGntAWMFFjcgXNCVe1ue5mQ-U8O7-ko4_X_MWe7GRCncFqTXzaO-wSi0DIWlWN9B60pfxNxwoqw9hKNx2OGRKIuBXfR9AVoZNyQb01TibV6fFtstYeCToWBSfN2GRlb9bzLxJovZy8at70eVj8enracF7FSfU3dte-wOBDzq_T8ms3fGXmqB-odVa32igzfBSIrJVkY57ZD5Ixx2adgoYQ4p___nPcKtQRH0j_E8pBB6UGBA6aX-goGwWlSn6Xl0y"
+              src={avatarUrl}
               width={28}
               height={28}
+              unoptimized
             />
             <div className="flex flex-col text-left">
               <span className="font-sans text-[11px] font-bold text-on-surface leading-none mb-0.5">
-                Budi Santoso
+                {displayName}
               </span>
               <span className="font-sans text-[9px] text-outline font-semibold leading-none">
-                NIP 19800101
+                {displayNip}
               </span>
             </div>
           </div>

@@ -29,6 +29,20 @@
       "when": 1780966465703,
       "tag": "0003_rainy_stephen_strange",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1780991675725,
+      "tag": "0004_slippery_tempest",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1780991835065,
+      "tag": "0005_fair_darkhawk",
+      "breakpoints": true
     }
   ]
 }

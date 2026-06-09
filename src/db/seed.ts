@@ -33,6 +33,9 @@ async function main() {
     displayUsername: "firdaus",
     jabatan: "Pranata Komputer",
     seksi: "Seksi Pengolahan Data",
+    pangkatGolongan: "Penata Tk. I / III/d",
+    unitKerja: "CDK Wilayah Trenggalek",
+    tandaTangan: "https://images.unsplash.com/photo-1596704017254-9b121068fb31?auto=format&fit=crop&q=80&w=200",
     image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
   });
 

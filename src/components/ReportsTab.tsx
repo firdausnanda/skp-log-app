@@ -275,6 +275,11 @@ export default function ReportsTab() {
   };
 
   const handleDownloadPdf = async () => {
+    if (filteredActivities.length === 0) {
+      triggerNotification("Gagal: Tidak ada data kegiatan pada periode filter terpilih.");
+      return;
+    }
+
     setIsPdfLoading(true);
     await showLoading("Menyusun file PDF & Bukti Dukung...", 1500);
     try {

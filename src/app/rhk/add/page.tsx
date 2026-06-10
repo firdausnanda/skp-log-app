@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Select from "react-select";
+import Select, { StylesConfig } from "react-select";
+
+interface OptionType {
+  value: string;
+  label: string;
+}
 import { useApp, RhkItem } from "@/context/AppContext";
 
 const monthsList = [
@@ -31,8 +36,8 @@ const kategoriOptions = [
   { value: "Tambahan", label: "Tambahan" },
 ];
 
-const customSelectStyles = {
-  control: (provided: any, state: any) => ({
+const customSelectStyles: StylesConfig<OptionType, false> = {
+  control: (provided, state) => ({
     ...provided,
     borderColor: state.isFocused ? "var(--color-primary)" : "var(--color-outline-variant)",
     boxShadow: state.isFocused ? "0 0 0 2px rgba(0, 35, 111, 0.15)" : "none",
@@ -45,14 +50,14 @@ const customSelectStyles = {
       borderColor: "var(--color-outline)"
     }
   }),
-  menu: (provided: any) => ({
+  menu: (provided) => ({
     ...provided,
     backgroundColor: "var(--color-surface-container-lowest)",
     borderRadius: "0.5rem",
     border: "1px solid var(--color-outline-variant)",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
   }),
-  option: (provided: any, state: any) => ({
+  option: (provided, state) => ({
     ...provided,
     backgroundColor: state.isSelected
       ? "var(--color-primary)"
@@ -68,15 +73,15 @@ const customSelectStyles = {
       backgroundColor: "var(--color-primary-fixed)"
     }
   }),
-  singleValue: (provided: any) => ({
+  singleValue: (provided) => ({
     ...provided,
     color: "var(--color-on-surface)",
   }),
-  placeholder: (provided: any) => ({
+  placeholder: (provided) => ({
     ...provided,
     color: "var(--color-outline)",
   }),
-  menuPortal: (provided: any) => ({
+  menuPortal: (provided) => ({
     ...provided,
     zIndex: 9999,
   }),
@@ -92,11 +97,7 @@ export default function AddRhkPage() {
   const [selectedMonths, setSelectedMonths] = useState<number[]>(() => editingRhk?.months || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Client-side rendering portal check
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+
 
   const handleMonthToggle = (monthVal: number) => {
     setSelectedMonths((prev) =>
@@ -244,7 +245,7 @@ export default function AddRhkPage() {
               styles={customSelectStyles}
               placeholder="Pilih Tahun..."
               isSearchable={false}
-              menuPortalTarget={isMounted ? document.body : null}
+              menuPortalTarget={typeof window !== "undefined" ? document.body : null}
             />
           </div>
 
@@ -277,7 +278,7 @@ export default function AddRhkPage() {
               styles={customSelectStyles}
               placeholder="Pilih Kategori..."
               isSearchable={false}
-              menuPortalTarget={isMounted ? document.body : null}
+              menuPortalTarget={typeof window !== "undefined" ? document.body : null}
             />
           </div>
 

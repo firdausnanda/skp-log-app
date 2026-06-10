@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { skpLog, perilakuBerakhlak, rencanaKinerja, buktiDukung, buktiDukungBerakhlak } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { getDriveClient } from "@/lib/googleDrive";
 
 
@@ -71,61 +71,87 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch Tugas Rutin (skpLog)
-    const logs = await db.query.skpLog.findMany({
-      where: eq(skpLog.userId, session.user.id),
-      with: {
-        rencanaKinerja: true,
-        buktiDukung: true,
-      },
-    });
+    // Fetch Tugas Rutin (skpLog) without using lateral join with
+    const logs = await db
+      .select()
+      .from(skpLog)
+      .where(eq(skpLog.userId, session.user.id));
+
+    // Fetch rencanaKinerja (RHKs) for the user to map them
+    const rhks = await db
+      .select()
+      .from(rencanaKinerja)
+      .where(eq(rencanaKinerja.userId, session.user.id));
+
+    // Fetch buktiDukung in batch for the fetched log IDs
+    const logIds = logs.map((l) => l.id);
+    const buktis = logIds.length > 0 
+      ? await db
+          .select()
+          .from(buktiDukung)
+          .where(inArray(buktiDukung.skpLogId, logIds))
+      : [];
 
     // Fetch BerAKHLAK (perilakuBerakhlak)
-    const perilakus = await db.query.perilakuBerakhlak.findMany({
-      where: eq(perilakuBerakhlak.userId, session.user.id),
-      with: {
-        buktiDukung: true,
-      },
-    });
+    const perilakus = await db
+      .select()
+      .from(perilakuBerakhlak)
+      .where(eq(perilakuBerakhlak.userId, session.user.id));
+
+    // Fetch buktiDukungBerakhlak in batch for the perilaku IDs
+    const perilakuIds = perilakus.map((p) => p.id);
+    const buktisBerakhlak = perilakuIds.length > 0
+      ? await db
+          .select()
+          .from(buktiDukungBerakhlak)
+          .where(inArray(buktiDukungBerakhlak.perilakuBerakhlakId, perilakuIds))
+      : [];
 
     // Map database records to frontend Activity interface
-    const mappedLogs = logs.map((item) => ({
-      id: item.id,
-      title: item.kegiatan,
-      category: "Tugas Rutin" as const,
-      date: formatDate(item.tanggal),
-      timeStart: "",
-      timeEnd: "",
-      rhk: item.rencanaKinerja?.deskripsi || "",
-      outputCount: item.outputCount,
-      outputType: item.outputType,
-      hasAttachment: (item.buktiDukung || []).length > 0,
-      attachmentName: item.buktiDukung?.[0]?.namaFile || undefined,
-      attachmentUrl: item.buktiDukung?.[0]?.url || undefined,
-      attachments: (item.buktiDukung || []).map((b) => ({
-        name: b.namaFile || "",
-        url: b.url,
-      })),
-    }));
+    const mappedLogs = logs.map((item) => {
+      const rKinerja = rhks.find((r) => r.id === item.rencanaKinerjaId);
+      const itemBuktis = buktis.filter((b) => b.skpLogId === item.id);
+      return {
+        id: item.id,
+        title: item.kegiatan,
+        category: "Tugas Rutin" as const,
+        date: formatDate(item.tanggal),
+        timeStart: "",
+        timeEnd: "",
+        rhk: rKinerja?.deskripsi || "",
+        outputCount: item.outputCount,
+        outputType: item.outputType,
+        hasAttachment: itemBuktis.length > 0,
+        attachmentName: itemBuktis[0]?.namaFile || undefined,
+        attachmentUrl: itemBuktis[0]?.url || undefined,
+        attachments: itemBuktis.map((b) => ({
+          name: b.namaFile || "",
+          url: b.url,
+        })),
+      };
+    });
 
-    const mappedPerilakus = perilakus.map((item) => ({
-      id: item.id,
-      title: `[${aspectMap[item.aspek] || item.aspek}] ${item.wujudPerbuatan}`,
-      category: "BerAKHLAK" as const,
-      date: formatDate(item.tanggal),
-      timeStart: "",
-      timeEnd: "",
-      rhk: "Rencana Hasil Kerja Terkait Kinerja Organisasi",
-      outputCount: 1,
-      outputType: "Dokumen",
-      hasAttachment: (item.buktiDukung || []).length > 0,
-      attachmentName: item.buktiDukung?.[0]?.namaFile || undefined,
-      attachmentUrl: item.buktiDukung?.[0]?.url || undefined,
-      attachments: (item.buktiDukung || []).map((b) => ({
-        name: b.namaFile || "",
-        url: b.url,
-      })),
-    }));
+    const mappedPerilakus = perilakus.map((item) => {
+      const itemBuktis = buktisBerakhlak.filter((b) => b.perilakuBerakhlakId === item.id);
+      return {
+        id: item.id,
+        title: `[${aspectMap[item.aspek] || item.aspek}] ${item.wujudPerbuatan}`,
+        category: "BerAKHLAK" as const,
+        date: formatDate(item.tanggal),
+        timeStart: "",
+        timeEnd: "",
+        rhk: "Rencana Hasil Kerja Terkait Kinerja Organisasi",
+        outputCount: 1,
+        outputType: "Dokumen",
+        hasAttachment: itemBuktis.length > 0,
+        attachmentName: itemBuktis[0]?.namaFile || undefined,
+        attachmentUrl: itemBuktis[0]?.url || undefined,
+        attachments: itemBuktis.map((b) => ({
+          name: b.namaFile || "",
+          url: b.url,
+        })),
+      };
+    });
 
     // Combine and sort by date descending
     const allActivities = [...mappedLogs, ...mappedPerilakus].sort(
@@ -454,13 +480,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Missing activity ID" }, { status: 400 });
     }
 
-    // Check in skpLog
+    // Check in skpLog without lateral joins
     const existingLog = await db.query.skpLog.findFirst({
       where: (sl, { and, eq }) => and(eq(sl.id, id), eq(sl.userId, session.user.id)),
-      with: { buktiDukung: true },
     });
     if (existingLog) {
-      for (const bukti of existingLog.buktiDukung || []) {
+      const buktis = await db
+        .select()
+        .from(buktiDukung)
+        .where(eq(buktiDukung.skpLogId, id));
+      for (const bukti of buktis) {
         await deleteFileByUrl(bukti.url);
       }
       await db.delete(buktiDukung).where(eq(buktiDukung.skpLogId, id));
@@ -468,13 +497,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    // Check in perilakuBerakhlak
+    // Check in perilakuBerakhlak without lateral joins
     const existingPerilaku = await db.query.perilakuBerakhlak.findFirst({
       where: (pb, { and, eq }) => and(eq(pb.id, id), eq(pb.userId, session.user.id)),
-      with: { buktiDukung: true },
     });
     if (existingPerilaku) {
-      for (const bukti of existingPerilaku.buktiDukung || []) {
+      const buktis = await db
+        .select()
+        .from(buktiDukungBerakhlak)
+        .where(eq(buktiDukungBerakhlak.perilakuBerakhlakId, id));
+      for (const bukti of buktis) {
         await deleteFileByUrl(bukti.url);
       }
       await db.delete(buktiDukungBerakhlak).where(eq(buktiDukungBerakhlak.perilakuBerakhlakId, id));

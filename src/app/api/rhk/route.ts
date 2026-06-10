@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { rencanaKinerja } from "@/db/schema";
+import { rencanaKinerja, skpLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(request: Request) {
@@ -14,24 +14,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rhks = await db.query.rencanaKinerja.findMany({
-      where: eq(rencanaKinerja.userId, session.user.id),
-      with: {
-        skpLogs: true,
-      },
-    });
+    // Fetch all rencanaKinerja for the user
+    const rhks = await db
+      .select()
+      .from(rencanaKinerja)
+      .where(eq(rencanaKinerja.userId, session.user.id));
+
+    // Fetch all skpLogs for the user to count progress in-memory
+    const logs = await db
+      .select()
+      .from(skpLog)
+      .where(eq(skpLog.userId, session.user.id));
 
     // Map database records to RhkItem interface expected by AppContext
-    const mappedRhks = rhks.map((item) => ({
-      id: item.id,
-      type: item.kategori === "TAMBAHAN" ? "Tambahan" : "Utama",
-      title: item.deskripsi,
-      indicator: item.indicator || "Laporan hasil kegiatan capaian kinerja.",
-      currentProgress: item.skpLogs?.length || 0,
-      targetProgress: item.bulanPelaksanaan?.length || 10,
-      period: item.tahun || "2024",
-      months: item.bulanPelaksanaan,
-    }));
+    const mappedRhks = rhks.map((item) => {
+      const itemLogs = logs.filter((l) => l.rencanaKinerjaId === item.id);
+      return {
+        id: item.id,
+        type: item.kategori === "TAMBAHAN" ? "Tambahan" : "Utama",
+        title: item.deskripsi,
+        indicator: item.indicator || "Laporan hasil kegiatan capaian kinerja.",
+        currentProgress: itemLogs.length,
+        targetProgress: item.bulanPelaksanaan?.length || 10,
+        period: item.tahun || "2024",
+        months: item.bulanPelaksanaan,
+      };
+    });
 
     return NextResponse.json(mappedRhks);
   } catch (error) {

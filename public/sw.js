@@ -4,7 +4,7 @@ const PRECACHE_ASSETS = [
   "/",
   "/login",
   "/favicon.ico",
-  "/img/logo.webp",
+  "/img/logo-new.png",
   "/icon-192x192.png",
   "/icon-512x512.png",
   "/icon-192x192-maskable.png",

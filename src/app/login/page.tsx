@@ -101,7 +101,7 @@ export default function LoginPage() {
             <Image
               alt="SKP Online Logo"
               className="w-35 h-35 object-contain"
-              src="/img/logo.webp"
+              src="/img/logo-new.png"
               width={40}
               height={40}
               priority

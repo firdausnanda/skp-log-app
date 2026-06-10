@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 
-logo_path = 'public/img/logo.webp'
+logo_path = 'public/img/logo-new.png'
 public_dir = 'public'
 
 def generate_icons():

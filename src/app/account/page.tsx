@@ -287,7 +287,20 @@ export default function AccountPage() {
     }
   };
 
-  const avatarUrl = user?.image || "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+  const getDriveProxyUrl = (url: string | null | undefined) => {
+    if (!url) return "";
+    const matchD = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    const matchId = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    const fileId = (matchD && matchD[1]) || (matchId && matchId[1]);
+    if (fileId) {
+      return `/api/drive-file?id=${fileId}`;
+    }
+    return url;
+  };
+
+  const avatarUrl = user?.image 
+    ? getDriveProxyUrl(user.image) 
+    : "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -464,7 +477,7 @@ export default function AccountPage() {
                       <Image
                         alt="Tanda Tangan"
                         className="max-h-full max-w-full object-contain"
-                        src={user.tandaTangan}
+                        src={getDriveProxyUrl(user.tandaTangan)}
                         width={200}
                         height={112}
                         unoptimized

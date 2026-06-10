@@ -36,9 +36,22 @@ export default function TopAppBar({ onLogout }: TopAppBarProps) {
     setMounted(true);
   }, []);
 
+  const getDriveProxyUrl = (url: string | null | undefined) => {
+    if (!url) return "";
+    const matchD = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    const matchId = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    const fileId = (matchD && matchD[1]) || (matchId && matchId[1]);
+    if (fileId) {
+      return `/api/drive-file?id=${fileId}`;
+    }
+    return url;
+  };
+
   const displayName = mounted && user?.name ? user.name : "Budi Santoso";
   const displayNip = mounted && user?.nip ? `NIP ${user.nip}` : "NIP 19800101";
-  const avatarUrl = mounted && user?.image ? user.image : "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
+  const avatarUrl = mounted && user?.image 
+    ? getDriveProxyUrl(user.image) 
+    : "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png";
 
   const handleProfileClick = () => {
     setLoadingMsg("Memuat pengaturan akun...");

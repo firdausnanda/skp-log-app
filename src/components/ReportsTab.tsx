@@ -410,8 +410,9 @@ export default function ReportsTab() {
       const sortedActivities = [...aspectActivities].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       // Track page insertions dynamically.
-      // Page 0 is Cover. Page 1 is the first activity.
-      let currentInsertIndex = 1;
+      // The cover page might overflow to multiple pages.
+      // Cover page count is the total base pages minus the number of activity pages.
+      let currentInsertIndex = mergedPdf.getPageCount() - sortedActivities.length;
       
       for (let a = 0; a < sortedActivities.length; a++) {
         const act = sortedActivities[a];
@@ -454,7 +455,7 @@ export default function ReportsTab() {
         }
 
         // Move index to point to the next activity page
-        currentInsertIndex += 2;
+        currentInsertIndex += 1;
       }
 
       // 3. Save the final merged PDF

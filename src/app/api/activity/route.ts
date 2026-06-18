@@ -110,7 +110,9 @@ export async function GET(request: Request) {
     // Map database records to frontend Activity interface
     const mappedLogs = logs.map((item) => {
       const rKinerja = rhks.find((r) => r.id === item.rencanaKinerjaId);
-      const itemBuktis = buktis.filter((b) => b.skpLogId === item.id);
+      const itemBuktis = buktis
+        .filter((b) => b.skpLogId === item.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       return {
         id: item.id,
         title: item.kegiatan,
@@ -132,7 +134,9 @@ export async function GET(request: Request) {
     });
 
     const mappedPerilakus = perilakus.map((item) => {
-      const itemBuktis = buktisBerakhlak.filter((b) => b.perilakuBerakhlakId === item.id);
+      const itemBuktis = buktisBerakhlak
+        .filter((b) => b.perilakuBerakhlakId === item.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       return {
         id: item.id,
         title: `[${aspectMap[item.aspek] || item.aspek}] ${item.wujudPerbuatan}`,
@@ -220,12 +224,14 @@ export async function POST(request: Request) {
       });
 
       if (attachments && Array.isArray(attachments)) {
-        for (const att of attachments) {
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           await db.insert(buktiDukung).values({
             id: crypto.randomUUID(),
             url: att.url,
             namaFile: att.name,
             skpLogId: newId,
+            createdAt: new Date(Date.now() + i * 1000),
           });
         }
       } else if (attachmentName) {
@@ -256,12 +262,14 @@ export async function POST(request: Request) {
       });
 
       if (attachments && Array.isArray(attachments)) {
-        for (const att of attachments) {
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           await db.insert(buktiDukungBerakhlak).values({
             id: crypto.randomUUID(),
             url: att.url,
             namaFile: att.name,
             perilakuBerakhlakId: newId,
+            createdAt: new Date(Date.now() + i * 1000),
           });
         }
       } else if (attachmentName) {
@@ -364,12 +372,14 @@ export async function PUT(request: Request) {
       await db.delete(buktiDukung).where(eq(buktiDukung.skpLogId, id));
 
       if (attachments && Array.isArray(attachments)) {
-        for (const att of attachments) {
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           await db.insert(buktiDukung).values({
             id: crypto.randomUUID(),
             url: att.url,
             namaFile: att.name,
             skpLogId: id,
+            createdAt: new Date(Date.now() + i * 1000),
           });
         }
       } else if (attachmentName) {
@@ -421,12 +431,14 @@ export async function PUT(request: Request) {
       await db.delete(buktiDukungBerakhlak).where(eq(buktiDukungBerakhlak.perilakuBerakhlakId, id));
 
       if (attachments && Array.isArray(attachments)) {
-        for (const att of attachments) {
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           await db.insert(buktiDukungBerakhlak).values({
             id: crypto.randomUUID(),
             url: att.url,
             namaFile: att.name,
             perilakuBerakhlakId: id,
+            createdAt: new Date(Date.now() + i * 1000),
           });
         }
       } else if (attachmentName) {

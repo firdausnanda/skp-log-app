@@ -231,11 +231,11 @@ function DetailJurnalContent() {
                     }`}>
                       <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
                     </div>
-                    <div className="overflow-hidden">
-                      <h4 className="font-label-sm text-xs text-on-surface font-bold truncate">
-                        {item.value}
+                    <div className="overflow-hidden flex-grow">
+                      <h4 className="font-label-sm text-xs text-on-surface font-bold flex flex-wrap items-baseline gap-x-1">
+                        <span>{item.value}</span>
                         {valueSuffixMap[item.value] && (
-                          <span className="text-[10px] text-outline/80 font-normal italic ml-1.5">
+                          <span className="text-[10px] text-outline/80 font-normal italic">
                             {valueSuffixMap[item.value]}
                           </span>
                         )}
@@ -390,16 +390,18 @@ function DetailJurnalContent() {
                       <button
                         type="button"
                         onClick={() => handleCreateForValue(item.value)}
-                        className="w-full py-2.5 rounded-lg border border-dashed border-primary/40 text-primary font-label-md text-xs font-bold hover:bg-primary/5 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-transparent"
+                        className="w-full py-2.5 px-3 rounded-lg border border-dashed border-primary/40 text-primary font-label-md text-xs font-bold hover:bg-primary/5 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-transparent"
                       >
-                        <span className="material-symbols-outlined text-base">add</span>
-                        Tambah Laporan {item.value}
-                        {valueSuffixMap[item.value] && (
-                          <span className="text-[10px] opacity-75 font-normal italic ml-1">
-                            {valueSuffixMap[item.value]}
-                          </span>
-                        )}
-                        {" "}Baru
+                        <span className="material-symbols-outlined text-base flex-shrink-0">add</span>
+                        <span className="flex flex-wrap items-center justify-center gap-x-1 text-center">
+                          <span>Tambah Laporan {item.value}</span>
+                          {valueSuffixMap[item.value] && (
+                            <span className="text-[10px] opacity-75 font-normal italic">
+                              {valueSuffixMap[item.value]}
+                            </span>
+                          )}
+                          <span>Baru</span>
+                        </span>
                       </button>
                     </div>
                   </div>

@@ -14,6 +14,20 @@ const coreValuesList = [
   { name: "Kolaboratif", icon: "handshake", descriptionPlaceholder: "Memberi kesempatan kepada berbagai pihak untuk berkontribusi." }
 ];
 
+const valueSuffixMap: Record<string, string> = {
+  "Berorientasi Pelayanan": " (Data tupoksi)",
+  "Akuntabel": " (Data absensi)",
+  "Kompeten": " (Sertifikat Webinar dan Notulensi)",
+  "Harmonis": " (Rapat dan Notulensi)",
+  "Loyal": " (Apel dan Absensi)",
+  "Adaptif": " (Inovasi)",
+  "Kolaboratif": " (Surat Tugas, SK)",
+};
+
+const getDisplayName = (valName: string) => {
+  return `${valName}${valueSuffixMap[valName] || ""}`;
+};
+
 const monthMap: { [key: string]: number } = {
   "Januari": 0, "Februari": 1, "Maret": 2, "April": 3, "Mei": 4, "Juni": 5,
   "Juli": 6, "Agustus": 7, "September": 8, "Oktober": 9, "November": 10, "Desember": 11
@@ -222,7 +236,9 @@ function DetailJurnalContent() {
                       <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
                     </div>
                     <div className="overflow-hidden">
-                      <h4 className="font-label-sm text-xs text-on-surface font-bold truncate">{item.value}</h4>
+                      <h4 className="font-label-sm text-xs text-on-surface font-bold truncate">
+                        {getDisplayName(item.value)}
+                      </h4>
                       <p className="text-[10px] text-outline mt-0.5">
                         {hasEntry 
                           ? `${item.activities.length} Laporan Diisi` 
@@ -376,7 +392,7 @@ function DetailJurnalContent() {
                         className="w-full py-2.5 rounded-lg border border-dashed border-primary/40 text-primary font-label-md text-xs font-bold hover:bg-primary/5 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-transparent"
                       >
                         <span className="material-symbols-outlined text-base">add</span>
-                        Tambah Laporan {item.value} Baru
+                        Tambah Laporan {getDisplayName(item.value)} Baru
                       </button>
                     </div>
                   </div>

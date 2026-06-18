@@ -24,10 +24,6 @@ const valueSuffixMap: Record<string, string> = {
   "Kolaboratif": " (Surat Tugas, SK)",
 };
 
-const getDisplayName = (valName: string) => {
-  return `${valName}${valueSuffixMap[valName] || ""}`;
-};
-
 const monthMap: { [key: string]: number } = {
   "Januari": 0, "Februari": 1, "Maret": 2, "April": 3, "Mei": 4, "Juni": 5,
   "Juli": 6, "Agustus": 7, "September": 8, "Oktober": 9, "November": 10, "Desember": 11
@@ -237,7 +233,12 @@ function DetailJurnalContent() {
                     </div>
                     <div className="overflow-hidden">
                       <h4 className="font-label-sm text-xs text-on-surface font-bold truncate">
-                        {getDisplayName(item.value)}
+                        {item.value}
+                        {valueSuffixMap[item.value] && (
+                          <span className="text-[10px] text-outline/80 font-normal italic ml-1.5">
+                            {valueSuffixMap[item.value]}
+                          </span>
+                        )}
                       </h4>
                       <p className="text-[10px] text-outline mt-0.5">
                         {hasEntry 
@@ -392,7 +393,13 @@ function DetailJurnalContent() {
                         className="w-full py-2.5 rounded-lg border border-dashed border-primary/40 text-primary font-label-md text-xs font-bold hover:bg-primary/5 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-transparent"
                       >
                         <span className="material-symbols-outlined text-base">add</span>
-                        Tambah Laporan {getDisplayName(item.value)} Baru
+                        Tambah Laporan {item.value}
+                        {valueSuffixMap[item.value] && (
+                          <span className="text-[10px] opacity-75 font-normal italic ml-1">
+                            {valueSuffixMap[item.value]}
+                          </span>
+                        )}
+                        {" "}Baru
                       </button>
                     </div>
                   </div>
